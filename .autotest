@@ -1,0 +1,2 @@
+require 'autotest/screen'
+Autotest::Screen.statusline = '%{Yk}[ %{W}%H %{Y}][%= %{wk}%?%-Lw%?%{=b kR}(%{W}%n*%f %t%?(%u)%?%{=b kR})%{= kw}%?%+Lw%?%?%= %{w}][%{Y}%l%{w}]%{=w C}[ %m/%d %c ]%{W}'
