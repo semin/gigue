@@ -1,0 +1,7 @@
+Help/Options:
+
+~user $ gigue -h
+
+For more information on gigue, see http://github.com/semin/gigue.
+
+
