@@ -1,17 +1,13 @@
 module Gigue
-  class Profile
-  end
-
-  class FugueProfile < Profile
+  class FugueProfile
 
     attr_reader :command, :length, :seq_cnt, :weighting,
-      :entry_names, :entry_weights, :multiple_factor,
-      :format, :row_symbols, :col_symbols, :env_symbols,
-      :gap_open_ins_term, :gap_open_del_term,
-      :gap_ext_ins_term, :gap_ext_del_term,
-      :aa_colnames, :gap_colnames, :env_colnames,
-      :positions
-
+                :entry_names, :entry_weights, :multiple_factor,
+                :format, :row_symbols, :col_symbols, :env_symbols,
+                :gap_open_ins_term, :gap_open_del_term,
+                :gap_ext_ins_term, :gap_ext_del_term,
+                :aa_colnames, :gap_colnames, :env_colnames,
+                :positions
 
     def initialize(file)
       @entry_names    = []
@@ -60,7 +56,7 @@ module Gigue
         elsif line =~ /^THEEND/
           break
         elsif parse_tag == :profile
-          cols = line.chomp.split(/\s+/)
+          cols      = line.chomp.split(/\s+/)
           probe     = cols[0]
           mat_score = cols[1,@aa_colnames.size].map { |s| Integer(s) }
           gap_score = cols[1+@aa_colnames.size,@gap_colnames.size].map { |s| Integer(s) }
@@ -74,5 +70,6 @@ module Gigue
         end
       end
     end
+
   end
 end

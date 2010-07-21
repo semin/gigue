@@ -1,11 +1,12 @@
-require File.join(File.dirname(__FILE__), "test_helper.rb")
+require File.join(File.dirname(__FILE__), '..', 'test_helper.rb')
 
-class TestProfile < Test::Unit::TestCase
+class TestFugueProfile < Test::Unit::TestCase
+
   include Gigue
 
   def setup
-    file = File.join(File.dirname(__FILE__), "d.240.1.1.fug")
-    @profile = FugueProfile.new(file)
+    file      = File.join(File.dirname(__FILE__), '..', 'd.240.1.1.fug')
+    @profile  = FugueProfile.new(file)
   end
 
   def test_command
@@ -93,19 +94,17 @@ class TestProfile < Test::Unit::TestCase
     assert_equal(157,     ps.size)
     assert_equal('-P---', ps[0].probe)
     assert_equal(-20,     ps[0].mat_score('A'))
-    assert_equal(-20,     ps[0]._mat_score['A'])
-    assert_equal(-50,     ps[0]._mat_score['U'])
-    assert_equal(100,     ps[0]._gap_score['InsO'])
-    assert_equal(11,      ps[0]._gap_score['Acc'])
-    assert_equal(0,       ps[0]._env_score['H'])
-    assert_equal(100,     ps[0]._env_score['n'])
+    assert_equal(-50,     ps[0].mat_score('U'))
+    assert_equal(100,     ps[0].gap_score('InsO'))
+    assert_equal(11,      ps[0].gap_score('Acc'))
+    assert_equal(0,       ps[0].env_score('H'))
+    assert_equal(100,     ps[0].env_score('n'))
     assert_equal('--L--', ps[-1].probe)
     assert_equal(-20,     ps[-1].mat_score('A'))
-    assert_equal(-20,     ps[-1]._mat_score['A'])
-    assert_equal(-20,     ps[-1]._mat_score['U'])
-    assert_equal(100,     ps[-1]._gap_score['InsO'])
-    assert_equal(11,      ps[-1]._gap_score['Acc'])
-    assert_equal(0,       ps[-1]._env_score['H'])
-    assert_equal(100,     ps[-1]._env_score['n'])
+    assert_equal(-20,     ps[-1].mat_score('U'))
+    assert_equal(100,     ps[-1].gap_score('InsO'))
+    assert_equal(11,      ps[-1].gap_score('Acc'))
+    assert_equal(0,       ps[-1].env_score('H'))
+    assert_equal(100,     ps[-1].env_score('n'))
   end
 end

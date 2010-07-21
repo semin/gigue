@@ -14,12 +14,12 @@ $hoe = Hoe.spec 'gigue' do
   self.developer 'Semin Lee', 'seminlee@gmail.com'
   self.post_install_message = 'PostInstall.txt' # TODO remove if post-install message not required
   self.rubyforge_name       = self.name # TODO this is default value
-  # self.extra_deps         = [['activesupport','>= 2.0.2']]
+  self.extra_deps         = [['narray','>= 0.5.9.7']]
 end
 
 require 'newgem/tasks'
 Dir['tasks/**/*.rake'].each { |t| load t }
 
 # TODO - want other tests/tasks run by default? Add them to the list
-# remove_task :default
-# task :default => [:spec, :features]
+#remove_task :default
+#task :default => [:spec, :features]

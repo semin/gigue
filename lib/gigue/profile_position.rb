@@ -1,44 +1,84 @@
 module Gigue
+
   class ProfilePosition
 
-    attr_reader :probe, :_mat_score, :_gap_score
+    attr_reader :probe
 
     def initialize(probe, mat_score, gap_score)
       @probe      = probe
-      @_mat_score  = mat_score
-      @_gap_score  = gap_score
+      @mat_score  = mat_score
+      @gap_score  = gap_score
+    end
+
+  end
+
+  class StructuralProfilePosition < ProfilePosition
+
+    def initialize(probe, mat_score, gap_score)
+      super(probe, mat_score, gap_score)
+    end
+
+    def mat_score(aa)
+      @mat_score[aa]
+    end
+
+    def gap_score(scheme)
+      @gap_score[scheme]
+    end
+
+    def gap_ins_open
+      @gap_score['InsO']
+    end
+
+    def gap_ins_ext
+      @gap_score['InsE']
+    end
+
+    def gap_del_open
+      @gap_score['DelO']
+    end
+
+    def gap_del_ext
+      @gap_score['DelE']
     end
 
   end
 
   class FugueProfilePosition < ProfilePosition
 
-    attr_reader :_env_score
-
     def initialize(probe, mat_score, gap_score, env_score)
       super(probe, mat_score, gap_score)
-      @_env_score = env_score
+      @env_score = env_score
     end
 
     def mat_score(aa)
-      @_mat_score[aa]
+      @mat_score[aa]
+    end
+
+    def gap_score(scheme)
+      @gap_score[scheme]
+    end
+
+    def env_score(scheme)
+      @env_score[scheme]
     end
 
     def gap_ins_open
-      -@_gap_score['InsO']
+      @gap_score['InsO']
     end
 
     def gap_ins_ext
-      -@_gap_score['InsE']
+      @gap_score['InsE']
     end
 
     def gap_del_open
-      -@_gap_score['DelO']
+      @gap_score['DelO']
     end
 
     def gap_del_ext
-      -@_gap_score['DelE']
+      @gap_score['DelE']
     end
 
   end
+
 end
