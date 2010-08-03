@@ -17,8 +17,8 @@ class TestFugueProfile < Test::Unit::TestCase
     assert_equal(157, @profile.length)
   end
 
-  def test_seq_cnt
-    assert_equal(5, @profile.seq_cnt)
+  def test_number_of_sequences
+    assert_equal(5, @profile.sequences.size)
   end
 
   def test_weighting
@@ -26,19 +26,19 @@ class TestFugueProfile < Test::Unit::TestCase
   end
 
   def test_entry_names
-    assert_equal('106363',  @profile.entry_names[0])
-    assert_equal('90374',   @profile.entry_names[1])
-    assert_equal('99680',   @profile.entry_names[2])
-    assert_equal('90378',   @profile.entry_names[3])
-    assert_equal('106701',  @profile.entry_names[4])
+    assert_equal('106363',  @profile.sequences[0].code)
+    assert_equal('90374',   @profile.sequences[1].code)
+    assert_equal('99680',   @profile.sequences[2].code)
+    assert_equal('90378',   @profile.sequences[3].code)
+    assert_equal('106701',  @profile.sequences[4].code)
   end
 
   def test_entry_weights
-    assert_equal(0.2,  @profile.entry_weights[0])
-    assert_equal(0.2,  @profile.entry_weights[1])
-    assert_equal(0.2,  @profile.entry_weights[2])
-    assert_equal(0.2,  @profile.entry_weights[3])
-    assert_equal(0.2,  @profile.entry_weights[4])
+    assert_equal(0.2,  @profile.weights[@profile.sequences[0].code])
+    assert_equal(0.2,  @profile.weights[@profile.sequences[1].code])
+    assert_equal(0.2,  @profile.weights[@profile.sequences[2].code])
+    assert_equal(0.2,  @profile.weights[@profile.sequences[3].code])
+    assert_equal(0.2,  @profile.weights[@profile.sequences[4].code])
   end
 
   def test_multiple_factor

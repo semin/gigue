@@ -3,9 +3,9 @@ module Gigue
 
     attr_reader :profile, :sequence
 
-    def initialize(profile, sequence, algo = :global)
-      @profile  = profile
-      @sequence = sequence
+    def initialize(prf, seq)
+      @profile  = prf
+      @sequence = seq
     end
 
     def local_alignment_with_linear_gap_penalty(gap_del = 100, gap_ins = 100)
@@ -221,8 +221,7 @@ module Gigue
         end
       end
 
-      ProfileSequenceAlignmentAffineGap.new(@profile,
-                                            @sequence,
+      ProfileSequenceAlignmentAffineGap.new(@profile, @sequence,
                                             mat, del, ins, max_i, max_j, max_m)
     end
 

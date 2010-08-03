@@ -1,13 +1,13 @@
 module Gigue
-  class ProfileSequenceAlignment
+  class ProfileProfileAlignment
 
-    attr_reader :profile, :sequence, :raw_score,
-                :aligned_profile_positions,
-                :aligned_amino_acids
+    attr_reader :structural_profile, :sequence_profile, :raw_score,
+                :aligned_structural_profile_positions,
+                :aligned_sequence_profile_positions
 
-    def initialize(prf, seq)
-      @profile  = prf
-      @sequence = seq
+    def initialize(str_prf, seq_prf)
+      @structural_profile = str_prf
+      @sequence_profile   = seq_prf
     end
 
     def to_flatfile(options={})
@@ -19,36 +19,38 @@ module Gigue
 
       opts[:os] = File.open(opts[:os], 'w') if opts[:os].is_a? String
 
-      # print aligned profile sequences
-      @profile.sequences.each_with_index do |pseq, psi|
+      # print aligned structural profile sequences
+      @structural_profile.sequences.each_with_index do |pseq, psi|
         opts[:os].puts ">#{pseq.code}"
         opts[:os].puts "structure" if opts[:type] == :pir
-        opts[:os].puts @aligned_profile_positions.map_with_index { |p, pi|
+        opts[:os].puts @aligned_structural_profile_positions.map_with_index { |p, pi|
           ((p == '-' ? '-' : (p.probe[psi] == 'J' ? 'C' : p.probe[psi])) +
            (pi > 0 && (pi+1) % opts[:width] == 0 ? "\n" : ''))
         }.join('')
       end
 
-      # print aligned query sequence
-      opts[:os].puts ">#{@sequence.code}"
-      opts[:os].puts "sequence" if opts[:type] == :pir
-      opts[:os].puts @aligned_amino_acids.map_with_index { |a, ai|
-        a + (ai > 0 && (ai+1) % opts[:width] == 0 ? "\n" : '')
-      }.join('')
+      # print aligned sequence profile sequences
+      @sequence_profile.msa.sequences.each_with_index do |pseq, psi|
+        opts[:os].puts ">#{pseq.code}"
+        opts[:os].puts "sequence" if opts[:type] == :pir
+        opts[:os].puts @aligned_sequence_profile_positions.map_with_index { |p, pi|
+          ((p == '-' ? '-' : (p.probe[psi] == 'J' ? 'C' : p.probe[psi])) +
+           (pi > 0 && (pi+1) % opts[:width] == 0 ? "\n" : ''))
+        }.join('')
+      end
 
       opts[:os].close if [File, String].include? opts[:os].class
     end
-
   end
 
-  class ProfileSequenceAlignmentLinearGap < ProfileSequenceAlignment
+  class ProfileProfileAlignmentLinearGap < ProfileProfileAlignment
 
     attr_reader :stmatrix
 
-    def initialize(profile, sequence, stmatrix, i = nil, j = nil)
-      super(profile, sequence)
+    def initialize(str_prf, seq_prf, stmatrix, i = nil, j = nil)
+      super(str_prf, seq_prf)
       @stmatrix = stmatrix
-      @aligned_profile_positions, @aligned_amino_acids = traceback(i, j)
+      @aligned_structural_profile_positions, @aligned_sequence_profile_positions = traceback(i, j)
     end
 
     def raw_score
@@ -56,11 +58,12 @@ module Gigue
     end
 
     def traceback(i, j)
-      pss     = @profile.positions
-      aas     = @sequence.amino_acids
-      seq_cnt = @profile.sequences.size
-      ali_prf = []
-      ali_seq = []
+      str_pss     = @structural_profile.positions
+      seq_pss     = @sequence_profile.positions
+      str_cnt     = @structural_profile.sequences.size
+      seq_cnt     = @sequence_profile.msa.sequences.size
+      ali_str_pss = []
+      ali_seq_pss = []
 
       if i.nil? || j.nil?
         i, j = @stmatrix.shape
@@ -74,39 +77,38 @@ module Gigue
         when NONE
           break
         when DIAG
-          ali_prf << pss[i-1]
-          ali_seq << aas[j-1]
+          ali_str_pss << str_pss[i-1]
+          ali_seq_pss << seq_pss[j-1]
           i -= 1
           j -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "DIAG", "#{ali_prf[-1] == '-' ? '-' * seq_cnt : ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "DIAG", "#{ali_str_pss[-1].probe} <=> #{ali_seq_pss[-1].probe}"]
         when LEFT
-          ali_prf << pss[i-1]
-          ali_seq << '-'
+          ali_str_pss << str_pss[i-1]
+          ali_seq_pss << SequenceProfilePosition.new('-'*seq_cnt)
           i -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "INS", "#{ali_prf[-1] == '-' ? '-' * seq_cnt : ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "INS", "#{ali_str_pss[-1].probe} <=> #{ali_seq_pss[-1].probe}"]
         when UP
-          ali_prf << '-'
-          ali_seq << aas[j-1]
+          ali_str_pss << StructuralProfilePosition.new('-'*str_cnt)
+          ali_seq_pss << seq_pss[j-1]
           j -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "DEL", "#{ali_prf[-1] == '-' ? '-' * seq_cnt : ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "DEL", "#{ali_str_pss[-1].probe} <=> #{ali_seq_pss[-1].probe}"]
         else
           $logger.error "Something wrong with pointing stage at i: #{i}, j: #{j}"
           exit 1
         end
       end
-      [ali_prf.reverse!, ali_seq.reverse!]
+      [ali_str_pss.reverse!, ali_seq_pss.reverse!]
     end
-
   end
 
-  class ProfileSequenceAlignmentAffineGap < ProfileSequenceAlignment
+  class ProfileProfileAlignmentAffineGap < ProfileProfileAlignment
 
     attr_reader :match_stmatrix, :insertion_stmatrix, :deletion_stmatrix
 
-    def initialize(profile, sequence,
+    def initialize(str_prf, seq_prf,
                    match_stmatrix, deletion_stmatrix, insertion_stmatrix,
                    i = nil, j = nil, max_mat = nil)
-      super(profile, sequence)
+      super(str_prf, seq_prf)
       @match_stmatrix     = match_stmatrix
       @deletion_stmatrix  = deletion_stmatrix
       @insertion_stmatrix = insertion_stmatrix
@@ -122,17 +124,18 @@ module Gigue
                                 @insertion_stmatrix[-1,-1][:score]
                               ].max
                             end
-      @aligned_profile_positions, @aligned_amino_acids = traceback(i, j, max_mat)
+      @aligned_structural_profile_positions, @aligned_sequence_profile_positions = traceback(i, j, max_mat)
     end
 
     def traceback(i, j, max_mat)
-      pss     = @profile.positions
-      aas     = @sequence.amino_acids
-      seq_cnt = @profile.sequences.size
-      ali_prf = []
-      ali_seq = []
-      pre_mat = nil
-      cur_mat = nil
+      str_pss     = @structural_profile.positions
+      seq_pss     = @sequence_profile.positions
+      str_cnt     = @structural_profile.sequences.size
+      seq_cnt     = @sequence_profile.msa.sequences.size
+      ali_str_pss = []
+      ali_seq_pss = []
+      pre_mat     = nil
+      cur_mat     = nil
 
       if i.nil? || j.nil?
         i, j = @match_stmatrix.shape
@@ -183,29 +186,29 @@ module Gigue
         until cur_mat[i, j][:jump].nil?
           case pre_mat
           when :mat
-            ali_prf << pss[i-1]
-            ali_seq << aas[j-1]
+            ali_str_pss << str_pss[i-1]
+            ali_seq_pss << seq_pss[j-1]
           when :del
-            ali_prf << pss[i-1]
-            ali_seq << '-'
+            ali_str_pss << str_pss[i-1]
+            ali_seq_pss << SequenceProfilePosition.new('-'*seq_cnt)
           when :ins
-            ali_prf << '-'
-            ali_seq << aas[j-1]
+            ali_str_pss << StructuralProfilePosition.new('-'*str_cnt)
+            ali_seq_pss << seq_pss[j-1]
           end
 
           jm, mi, jj  = cur_mat[i, j][:jump].split('-')
           i, j        = Integer(mi), Integer(jj)
           cur_mat     = case jm
                         when 'M'
-                          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "JUMP", "#{ali_prf[-1] == '-' ? '-' * seq_cnt : ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+                          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "JUMP", "#{ali_str_pss[-1].probe} <=> #{ali_seq_pss[-1].probe}"]
                           pre_mat = :mat
                           @match_stmatrix
                         when 'D'
-                          $logger.debug "%-15s : %-4s : %s" % ["DEL[#{i}, #{j}]", "JUMP", "#{ali_prf[-1] == '-' ? '-' * seq_cnt : ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+                          $logger.debug "%-15s : %-4s : %s" % ["DEL[#{i}, #{j}]", "JUMP", "#{ali_str_pss[-1].probe} <=> #{ali_seq_pss[-1].probe}"]
                           pre_mat = :del
                           @deletion_stmatrix
                         when 'I'
-                          $logger.debug "%-15s : %-4s : %s" % ["INS[#{i}, #{j}]", "JUMP", "#{ali_prf[-1] == '-' ? '-' * seq_cnt : ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+                          $logger.debug "%-15s : %-4s : %s" % ["INS[#{i}, #{j}]", "JUMP", "#{ali_str_pss[-1].probe} <=> #{ali_seq_pss[-1].probe}"]
                           pre_mat = :ins
                           @insertion_stmatrix
                         else
@@ -220,27 +223,27 @@ module Gigue
           $logger.debug "FINISH TRACEBACK"
           break
         when DIAG
-          ali_prf << pss[i-1]
-          ali_seq << aas[j-1]
+          ali_str_pss << str_pss[i-1]
+          ali_seq_pss << seq_pss[j-1]
           i -= 1
           j -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "DIAG", "#{ali_prf[-1] == '-' ? '-' * seq_cnt : ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "DIAG", "#{ali_str_pss[-1].probe} <=> #{ali_seq_pss[-1].probe}"]
         when LEFT
-          ali_prf << pss[i-1]
-          ali_seq << '-'
+          ali_str_pss << str_pss[i-1]
+          ali_seq_pss << SequenceProfilePosition.new('-'*seq_cnt)
           i -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["DEL[#{i}, #{j}]", "LEFT", "#{ali_prf[-1] == '-' ? '-' * seq_cnt : ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          $logger.debug "%-15s : %-4s : %s" % ["DEL[#{i}, #{j}]", "LEFT", "#{ali_str_pss[-1].probe} <=> #{ali_seq_pss[-1].probe}"]
         when UP
-          ali_prf << '-'
-          ali_seq << aas[j-1]
+          ali_str_pss << StructuralProfilePosition.new('-'*str_cnt)
+          ali_seq_pss << seq_pss[j-1]
           j -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["INS[#{i}, #{j}]", "UP", "#{ali_prf[-1] == '-' ? '-' * seq_cnt : ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          $logger.debug "%-15s : %-4s : %s" % ["INS[#{i}, #{j}]", "UP", "#{ali_str_pss[-1].probe} <=> #{ali_seq_pss[-1].probe}"]
         else
           $logger.error "Something wrong with pointing stage at i: #{i}, j: #{j}"
           exit 1
         end
       end
-      [ali_prf.reverse!, ali_seq.reverse!]
+      [ali_str_pss.reverse!, ali_seq_pss.reverse!]
     end
 
   end

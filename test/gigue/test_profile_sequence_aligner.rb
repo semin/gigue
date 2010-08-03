@@ -7,7 +7,7 @@ class TestProfileSequenceAligner < Test::Unit::TestCase
     $logger.level = Logger::WARN
     file          = File.join(File.dirname(__FILE__), '..', 'd.240.1.1.fug')
     @profile      = FugueProfile.new(file)
-    @sequence     = Sequence.new('test', 'VRKSIGRIVTMKRNSRNLEEIKPYLFRAIEESYYKLDKRIPKAIHVVAVTEDLDIVSRGRTFPHGISKETAYSESVKLLQKILEEDERKIRRIGVRFSKFI')
+    @sequence     = Sequence.new('VRKSIGRIVTMKRNSRNLEEIKPYLFRAIEESYYKLDKRIPKAIHVVAVTEDLDIVSRGRTFPHGISKETAYSESVKLLQKILEEDERKIRRIGVRFSKFI', 'test')
   end
 
   def test_global_alignment_with_affine_gap_penalty

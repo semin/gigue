@@ -1,8 +1,8 @@
 module Gigue
   class FugueProfile
 
-    attr_reader :command, :length, :seq_cnt, :weighting,
-                :entry_names, :entry_weights, :multiple_factor,
+    attr_reader :command, :length, :weighting,
+                :sequences, :weights, :multiple_factor,
                 :format, :row_symbols, :col_symbols, :env_symbols,
                 :gap_open_ins_term, :gap_open_del_term,
                 :gap_ext_ins_term, :gap_ext_del_term,
@@ -10,24 +10,26 @@ module Gigue
                 :positions
 
     def initialize(file)
-      @entry_names    = []
-      @entry_weights  = []
-      @positions      = []
-      parse_tag       = nil
-      curr_pos        = nil
+      @sequences  = []
+      @weights    = {}
+      @positions  = []
+      parse_tag   = nil
+
       IO.foreach(file) do |line|
         if    line =~ /^Command:\s+(.*)/
           @command = $1.strip
         elsif line =~ /^Profile_length:\s+(\d+)/
-          @length = Integer($1)
+          @length  = Integer($1)
         elsif line =~ /^Sequence_in_profile:\s+(\d+)/
           @seq_cnt = Integer($1)
         elsif line =~ /^Weighting:\s+(\d+)/
           @weighting  = 1
-          parse_tag = :weighting
+          parse_tag   = :weighting
         elsif line =~ /^\s+(\S+)\s+(\S+)\s*$/ && parse_tag == :weighting
-          @entry_names    << $1
-          @entry_weights  << Float($2)
+          @sequences << OpenStruct.new
+          @sequences[-1].code = $1
+          @sequences[-1].data = ''
+          @weights[$1]        = Float($2)
         elsif line =~ /^Multiple_factor:\s+(\S+)/
           @multiple_factor = Float($1)
         elsif line =~ /^Profile_format:\s+(\d+)\s+(\S+)/
@@ -67,6 +69,7 @@ module Gigue
             Hash[*@gap_colnames.zip(gap_score).flatten],
             Hash[*@env_colnames.zip(env_score).flatten]
           )
+          @sequences.each_with_index { |s, i| s.data += probe[i] }
         end
       end
     end

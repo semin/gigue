@@ -5,16 +5,15 @@ module Gigue
     VVLi, VLi, Li, Hi = 8, 20, 22, 28
     VVLe, VLe, Le, He = 2, 2, 4, 8
 
-    attr_reader :joytem, :essts, :weights, :seq_cnt,
-                :sequences, :entry_names, :length, :positions
+    attr_reader :joytem, :essts, :sequences,
+                :weights, :length, :positions
 
     def initialize(joy, essts, opts = {})
       @joytem       = JoyTem.new(joy)
       @essts        = Essts.new(essts)
       @sequences    = @joytem.sequences
       @length       = @joytem.alignment_length
-      @seq_cnt      = @sequences.size
-      @entry_names  = @sequences.map(&:code)
+      @positions    = []
       @options      = {
         :weighting          => :blosum,
         :multi              => 10,
@@ -58,8 +57,6 @@ module Gigue
       #
       # 3. Generating PSSMs
       #
-      @positions = []
-
       (0...@length).each do |pi|
         probe       = ''
         score       = NMatrix.int(1, @essts.rownames.size).fill!(0)
@@ -230,7 +227,7 @@ module Gigue
       exit 1
     end
 
-    def to_fugue_profile(os = STDOUT, type = :fugue)
+    def to_fug(os = STDOUT)
       os = File.open(os, 'w') if os.is_a? String
       os.puts "%-30s %-s" % ['Command:', "gigue build -t #{@joytem.file} -s #{@essts.file}"]
       os.puts
