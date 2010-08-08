@@ -1,7 +1,9 @@
 module Gigue
   class ProfileSequenceAlignment
 
-    attr_reader :profile, :sequence, :raw_score,
+    attr_reader :profile,
+                :sequence,
+                :raw_score,
                 :aligned_profile_positions,
                 :aligned_amino_acids
 
@@ -17,26 +19,26 @@ module Gigue
         :width  => 70
       }.merge!(options)
 
-      opts[:os] = File.open(opts[:os], 'w') if opts[:os].is_a? String
+      out = File.open(opts[:os], 'w') if opts[:os].is_a?(String)
 
       # print aligned profile sequences
       @profile.sequences.each_with_index do |pseq, psi|
-        opts[:os].puts ">#{pseq.code}"
-        opts[:os].puts "structure" if opts[:type] == :pir
-        opts[:os].puts @aligned_profile_positions.map_with_index { |p, pi|
+        out.puts ">#{pseq.code}"
+        out.puts "structure" if opts[:type] == :pir
+        out.puts @aligned_profile_positions.map_with_index { |p, pi|
           ((p == '-' ? '-' : (p.probe[psi] == 'J' ? 'C' : p.probe[psi])) +
            (pi > 0 && (pi+1) % opts[:width] == 0 ? "\n" : ''))
         }.join('')
       end
 
       # print aligned query sequence
-      opts[:os].puts ">#{@sequence.code}"
-      opts[:os].puts "sequence" if opts[:type] == :pir
-      opts[:os].puts @aligned_amino_acids.map_with_index { |a, ai|
+      out.puts ">#{@sequence.code}"
+      out.puts "sequence" if opts[:type] == :pir
+      out.puts @aligned_amino_acids.map_with_index { |a, ai|
         a + (ai > 0 && (ai+1) % opts[:width] == 0 ? "\n" : '')
       }.join('')
 
-      opts[:os].close if [File, String].include? opts[:os].class
+      out.close if [File, String].include?(out.class)
     end
 
   end

@@ -3,7 +3,7 @@ module Gigue
 
     attr_reader :command, :length, :weighting,
                 :sequences, :weights, :multiple_factor,
-                :format, :row_symbols, :col_symbols, :env_symbols,
+                :format, :rowsymbols, :colsymbols, :envsymbols,
                 :gap_open_ins_term, :gap_open_del_term,
                 :gap_ext_ins_term, :gap_ext_del_term,
                 :aa_colnames, :gap_colnames, :env_colnames,
@@ -35,11 +35,11 @@ module Gigue
         elsif line =~ /^Profile_format:\s+(\d+)\s+(\S+)/
           @format = "#{$1}-#{$2}"
         elsif line =~ /^Symbol_in_row\(sequence\):\s+(\S+)/ # for sequence
-          @row_symbols = $1.split('')
+          @rowsymbols = $1.split('')
         elsif line =~ /^Symbol_in_column\(structure\):\s+(\S+)/ # for structure
-          @col_symbols = $1.split('')
+          @colsymbols = $1.split('')
         elsif line =~ /^Symbol_structural_feature:\s+(\S+)/
-          @env_symbols = $1.split('')
+          @envsymbols = $1.split('')
         elsif line =~ /^GapInsOpenTerminal\s+(\S+)/
           @gap_open_ins_term = Float($1)
         elsif line =~ /^GapDelOpenTerminal\s+(\S+)/

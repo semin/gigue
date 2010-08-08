@@ -3,7 +3,9 @@ $:.unshift(File.dirname(__FILE__)) unless
 
 require 'narray'
 require 'logger'
+require 'inline'
 require 'ostruct'
+require 'active_support'
 require File.join(File.dirname(__FILE__), 'array_extensions')
 require File.join(File.dirname(__FILE__), 'enumerable_extensions')
 require File.join(File.dirname(__FILE__), 'gigue', 'esst')

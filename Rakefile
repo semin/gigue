@@ -23,3 +23,12 @@ Dir['tasks/**/*.rake'].each { |t| load t }
 # TODO - want other tests/tasks run by default? Add them to the list
 #remove_task :default
 #task :default => [:spec, :features]
+namespace :spec do
+  desc "Run all specs"
+  Spec::Rake::SpecTask.new('spec') do |t|
+    t.spec_files = FileList['spec/**/*_spec.rb']
+    t.spec_opts = ['--options', 'spec/spec.opts']
+  end
+end
+remove_task :default
+task :default => [:spec]

@@ -7,7 +7,7 @@ module Gigue
       @probe      = probe
       @mat_score  = mat_score
       @gap_score  = gap_score
-      @env_score = env_score
+      @env_score  = env_score
     end
 
     def mat_score(aa)

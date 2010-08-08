@@ -1,11 +1,11 @@
 module Gigue
   class Esst
 
-    attr_accessor :type, :name, :no, :colnames, :rownames, :matrix
+    attr_accessor :type, :label, :no, :colnames, :rownames, :matrix
 
-    def initialize(type, name, no, colnames = [], rownames = [], matrix = nil)
+    def initialize(type, label, no, colnames=[], rownames=[], matrix = nil)
       @type     = type
-      @name     = name
+      @label    = label
       @no       = no
       @colnames = colnames
       @rownames = rownames
@@ -20,6 +20,12 @@ module Gigue
     def scores_to(aa)
       j = rownames.index(aa)
       @matrix[0..-1, j]
+    end
+
+    def score(from_aa, to_aa)
+      i = colnames.index(from_aa)
+      j = rownames.index(to_aa)
+      @matrix[i, j]
     end
 
   end

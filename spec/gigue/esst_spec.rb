@@ -1,10 +1,9 @@
-require File.join(File.dirname(__FILE__), '..', 'test_helper.rb')
+require File.join(File.dirname(__FILE__), '..', 'spec_helper.rb')
+include Gigue
 
-class TestEsst < Test::Unit::TestCase
+describe Esst do
 
-  include Gigue
-
-  def setup
+  before(:all) do
     matrix = NMatrix[
       [4, -4, -1, -1, -1,  0, -2, 0, -1,  0,  0, -1,  0,  0, -1,  1, -1,  1, -2, -2,  3],
       [9, 23, -7, -7, -6,-10,-14,-8,-10, -8, -8, -5,-10, -9, -9,-15, -3, -6, -8, -1, -2],
@@ -34,8 +33,41 @@ class TestEsst < Test::Unit::TestCase
     @esst     = Esst.new(:logo, 'HASON', 0, colnames, rownames, matrix)
   end
 
-  def test_type
-    assert_equal(:logo, @esst.type)
+  it "#type returns its type" do
+    @esst.type.should == :logo
   end
+
+  it "#label returns label of environment class combination" do
+    @esst.label.should == 'HASON'
+  end
+
+  it "#no returns number assigned to it" do
+    @esst.no.should == 0
+  end
+
+  it "#colnames returns column names" do
+    @esst.colnames.should == 'ACDEFGHIKLMNPQRSTVWYJ'.split('')
+  end
+
+  it "#rownames returns row names" do
+    @esst.rownames.should == 'ACDEFGHIKLMNPQRSTVWYJU'.split('')
+  end
+
+  it "#matrix returns substitution matrix as an instance of NMatrix class" do
+    @esst.matrix.should be_an_instance_of(NMatrix)
+  end
+
+  it "#scores_from('A') returns substitution scores from amino acid 'A'" do
+    @esst.scores_from('A').should == NMatrix[[4], [9], [1], [1], [3], [1], [1], [2], [1], [1], [1], [1], [1], [1], [0], [1], [1], [2], [3], [2], [0], [1]]
+  end
+
+  it "#scores_to('A') returns substitution scores to amino acid 'A'" do
+    @esst.scores_to('A').should == NMatrix[[4, -4, -1, -1, -1, 0, -2, 0, -1, 0, 0, -1, 0, 0, -1, 1, -1, 1, -2, -2, 3]]
+  end
+
+  it "#score('A', 'A') returns substitution score between amino acid 'A' and 'A'" do
+    @esst.score('A', 'A').should == 4
+  end
+
 end
 

@@ -65,8 +65,16 @@ module Gigue
       @essts[0].rownames
     end
 
-    def [](key)
-      @essts.find { |e| e.name == key }
+    def [](index)
+      case index
+      when Integer
+        @essts[index]
+      when String
+        @essts.find { |e| e.label == index }
+      else
+        $logger.error "#{index} is not available for indexing ESSTs"
+        exit
+      end
     end
 
   end

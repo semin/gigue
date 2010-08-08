@@ -1,7 +1,9 @@
 module Gigue
   class ProfileProfileAlignment
 
-    attr_reader :structural_profile, :sequence_profile, :raw_score,
+    attr_reader :structural_profile,
+                :sequence_profile,
+                :raw_score,
                 :aligned_structural_profile_positions,
                 :aligned_sequence_profile_positions
 
@@ -17,29 +19,29 @@ module Gigue
         :width  => 70
       }.merge!(options)
 
-      opts[:os] = File.open(opts[:os], 'w') if opts[:os].is_a? String
+      out = File.open(opts[:os], 'w') if opts[:os].is_a?(String)
 
       # print aligned structural profile sequences
       @structural_profile.sequences.each_with_index do |pseq, psi|
-        opts[:os].puts ">#{pseq.code}"
-        opts[:os].puts "structure" if opts[:type] == :pir
-        opts[:os].puts @aligned_structural_profile_positions.map_with_index { |p, pi|
+        out.puts ">#{pseq.code}"
+        out.puts "structure" if opts[:type] == :pir
+        out.puts @aligned_structural_profile_positions.map_with_index { |p, pi|
           ((p == '-' ? '-' : (p.probe[psi] == 'J' ? 'C' : p.probe[psi])) +
            (pi > 0 && (pi+1) % opts[:width] == 0 ? "\n" : ''))
         }.join('')
       end
 
       # print aligned sequence profile sequences
-      @sequence_profile.msa.sequences.each_with_index do |pseq, psi|
-        opts[:os].puts ">#{pseq.code}"
-        opts[:os].puts "sequence" if opts[:type] == :pir
-        opts[:os].puts @aligned_sequence_profile_positions.map_with_index { |p, pi|
+      @sequence_profile.sequences.each_with_index do |pseq, psi|
+        out.puts ">#{pseq.code}"
+        out.puts "sequence" if opts[:type] == :pir
+        out.puts @aligned_sequence_profile_positions.map_with_index { |p, pi|
           ((p == '-' ? '-' : (p.probe[psi] == 'J' ? 'C' : p.probe[psi])) +
            (pi > 0 && (pi+1) % opts[:width] == 0 ? "\n" : ''))
         }.join('')
       end
 
-      opts[:os].close if [File, String].include? opts[:os].class
+      out.close if [File, String].include?(out.class)
     end
   end
 

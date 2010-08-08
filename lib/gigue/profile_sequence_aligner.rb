@@ -54,38 +54,6 @@ module Gigue
           end
         end
       end
-
-      #score = NMatrix.int(plen+1, slen+1).fill!(0)
-      #point = NMatrix.int(plen+1, slen+1).fill!(0)
-
-      #point[0, 0]       = NONE
-      #point[1..plen, 0] = LEFT
-      #point[0, 1..slen] = UP
-      #score[1..plen, 0] = 0
-      #score[0, 1..slen] = 0
-
-      #(0...slen).each do |si|
-        #(0...plen).each do |pi|
-          #mat = score[pi,     si] + pss[pi].mat_score(aas[si])
-          #del = score[pi,   si+1] - gap_del
-          #ins = score[pi+1,   si] - gap_ins
-
-          #score[pi+1, si+1] = [0, mat, del, ins].max
-          #point[pi+1, si+1] = case score[pi+1, si+1]
-                              #when 0    then NONE
-                              #when mat  then DIAG
-                              #when del  then LEFT
-                              #when ins  then UP
-                              #end
-
-          #if score[pi+1, si+1] >= max
-            #max_i = pi+1
-            #max_j = si+1
-            #max   = score[max_i, max_j]
-          #end
-        #end
-      #end
-
       ProfileSequenceAlignmentLinearGap.new(@profile, @sequence, stmat, max_i, max_j)
     end
 
@@ -261,44 +229,6 @@ module Gigue
                                 end
         end
       end
-
-      #score = NMatrix.int(plen+1, slen+1).fill!(0)
-      #point = NMatrix.int(plen+1, slen+1).fill!(0)
-
-      #point[0, 0]       = NONE
-      #point[1..plen, 0] = LEFT
-      #point[0, 1..slen] = UP
-
-      #score[1, 0] = -pss[0].gap_del_open
-      #(2..plen).each { |pi| score[pi, 0] = score[pi-1, 0] - gap_del }
-      #score[0, 1] = -pss[0].gap_ins_open
-      #(2..slen).each { |si| score[0, si] = score[0, si-1] - gap_ins }
-
-      #(0...slen).each do |si|
-        #(0...plen).each do |pi|
-          #mat = score[pi,   si] + pss[pi].mat_score(aas[si])
-          #ins = score[pi+1, si] - gap_ins
-          #del = score[pi, si+1] - gap_del
-
-          #if (mat >= ins)
-            #if (mat >= del)
-              #score[pi+1, si+1] = mat
-              #point[pi+1, si+1] = DIAG
-            #else
-              #score[pi+1, si+1] = del
-              #point[pi+1, si+1] = LEFT
-            #end
-          #else
-            #if (ins > del)
-              #score[pi+1, si+1] = ins
-              #point[pi+1, si+1] = UP
-            #else
-              #score[pi+1, si+1] = del
-              #point[pi+1, si+1] = LEFT
-            #end
-          #end
-        #end
-      #end
       ProfileSequenceAlignmentLinearGap.new(@profile, @sequence, stmat)
     end
 
@@ -358,20 +288,6 @@ module Gigue
           mat_ins = ins[n-1, m-1][:score] + pss[pi].mat_score(aas[ai])
           mat_max = [mat_mat, mat_del, mat_ins].max
           mat[n, m][:score] = mat_max
-          #mat_max = if mat_mat >= mat_ins
-                      #if mat_mat >= mat_del
-                        #{ :tag => :mat_mat, :score => mat_mat }
-                      #else
-                        #{ :tag => :mat_del, :score => mat_del }
-                      #end
-                    #else
-                      #if mat_ins > mat_del
-                        #{ :tag => :mat_ins, :score => mat_ins }
-                      #else
-                        #{ :tag => :mat_del, :score => mat_del }
-                      #end
-                    #end
-          #mat[n, m][:score] = mat_max[:score]
 
           case mat_max
           when mat_mat
@@ -391,12 +307,6 @@ module Gigue
           del_del = del[n-1, m][:score] - pss[pi].gap_del_ext
           del_max = [del_mat, del_del].max
           del[n, m][:score] = del_max
-          #del_max = if del_mat >= del_del
-                      #{ :tag => :del_mat, :score => del_mat }
-                    #else
-                      #{ :tag => :del_del, :score => del_del }
-                    #end
-          #del[n, m][:score] = del_max[:score]
 
           case del_max
           when del_mat
@@ -413,12 +323,6 @@ module Gigue
           ins_ins = ins[n, m-1][:score] - prev_gap_ins_ext
           ins_max = [ins_mat, ins_ins].max
           ins[n, m][:score] = ins_max
-          #ins_max = if ins_mat >= ins_ins
-                      #{ :tag => :ins_mat, :score => ins_mat }
-                    #else
-                      #{ :tag => :ins_ins, :score => ins_ins }
-                    #end
-          #ins[n, m][:score] = ins_max[:score]
 
           case ins_max
           when ins_mat
@@ -430,49 +334,8 @@ module Gigue
             ins[n, m][:point] = UP
             $logger.debug "%-10s %5s %10s" % ["I-#{n}-#{m}", "POINT", "D-#{n}-#{m-1}"]
           end
-
-          #if    mat_max[:tag] == :mat_mat
-            #mat[n, m][:point] = DIAG
-            #$logger.debug "%-10s %5s %10s" % ["M-#{n}-#{m}", "POINT", "M-#{n-1}-#{m-1}"]
-          #elsif mat_max[:tag] == :mat_del
-            #jmp = "D-#{n-1}-#{m-1}"
-            #mat[n, m][:jump] = jmp
-            #$logger.debug "%-10s %5s %10s" % ["M-#{n}-#{m}", "JUMP", jmp]
-          #elsif mat_max[:tag] == :mat_ins
-            #jmp = "I-#{n-1}-#{m-1}"
-            #mat[n, m][:jump] = jmp
-            #$logger.debug "%-10s %5s %10s" % ["M-#{n}-#{m}", "JUMP", jmp]
-          #else
-            #$logger.error "Wrong tag for maximum MAT score"
-            #exit 1
-          #end
-          #if    del_max[:tag] == :del_mat
-            #jmp = "M-#{n-1}-#{m}"
-            #del[n, m][:jump] = jmp
-            #$logger.debug "%-10s %5s %10s" % ["D-#{n}-#{m}", "JUMP", jmp]
-          #elsif del_max[:tag] == :del_del
-            #del[n, m][:point] = LEFT
-            #$logger.debug "%-10s %5s %10s" % ["D-#{n}-#{m}", "POINT", "D-#{n-1}-#{m}"]
-          #else
-            #$logger.error "Wrong tag for maximum DEL score"
-            #exit 1
-          #end
-          #if    ins_max[:tag] == :ins_mat
-            #jmp = "M-#{n}-#{m-1}"
-            #ins[n, m][:jump] = jmp
-            #prev_gap_ins_ext = pss[pi].gap_ins_ext
-            #$logger.debug "%-10s %5s %10s" % ["I-#{n}-#{m}", "JUMP", jmp]
-          #elsif ins_max[:tag] == :ins_ins
-            #ins[n, m][:point] = UP
-            #$logger.debug "%-10s %5s %10s" % ["I-#{n}-#{m}", "POINT", "D-#{n}-#{m-1}"]
-          #else
-            #$logger.error "Wrong tag for maximum INS score"
-            #exit 1
-          #end
-
         end
       end
-
       ProfileSequenceAlignmentAffineGap.new(@profile,
                                             @sequence,
                                             mat, del, ins)
