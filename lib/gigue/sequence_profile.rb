@@ -16,5 +16,9 @@ module Gigue
       @msa.length
     end
 
+    def shuffle
+      self.class.new(@msa.shuffle)
+    end
+
   end
 end

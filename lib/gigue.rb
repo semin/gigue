@@ -5,7 +5,6 @@ require 'narray'
 require 'logger'
 require 'inline'
 require 'ostruct'
-require 'active_support'
 require File.join(File.dirname(__FILE__), 'array_extensions')
 require File.join(File.dirname(__FILE__), 'enumerable_extensions')
 require File.join(File.dirname(__FILE__), 'gigue', 'esst')
@@ -15,7 +14,6 @@ require File.join(File.dirname(__FILE__), 'gigue', 'sequence')
 require File.join(File.dirname(__FILE__), 'gigue', 'sequence_profile')
 require File.join(File.dirname(__FILE__), 'gigue', 'sequence_profile_position')
 require File.join(File.dirname(__FILE__), 'gigue', 'fugue_profile')
-require File.join(File.dirname(__FILE__), 'gigue', 'fugue_profile_position')
 require File.join(File.dirname(__FILE__), 'gigue', 'structural_profile')
 require File.join(File.dirname(__FILE__), 'gigue', 'structural_profile_position')
 require File.join(File.dirname(__FILE__), 'gigue', 'profile_sequence_aligner')

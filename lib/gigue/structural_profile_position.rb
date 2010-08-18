@@ -34,4 +34,17 @@ module Gigue
     end
 
   end
+
+  class FugueProfilePosition < StructuralProfilePosition
+
+    def initialize(probe, mat_score, gap_score, env_score)
+      super(probe, mat_score, gap_score)
+      @env_score = env_score
+    end
+
+    def env_score(scheme)
+      @env_score[scheme]
+    end
+
+  end
 end

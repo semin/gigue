@@ -68,6 +68,17 @@ module Gigue
       end
     end
 
+    def shuffle
+      seqs = @sequences.dup
+      for i in 0...@length
+        r = Kernel.rand(@length-i)+i
+        seqs.each do |seq|
+          seq[r], seq[i] = seq[i], seq[r]
+        end
+      end
+      self.class.new(seqs)
+    end
+
     def to_sequence_profile
       SequenceProfile.new(self)
     end

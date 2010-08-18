@@ -8,7 +8,7 @@ module Gigue
     attr_reader :joytem, :essts, :sequences,
                 :weights, :length, :positions
 
-    def initialize(joy, essts, opts = {})
+    def initialize(joy, essts, opts={})
       @joytem       = JoyTem.new(joy)
       @essts        = Essts.new(essts)
       @sequences    = @joytem.sequences
@@ -78,39 +78,39 @@ module Gigue
             # 3.2.1. Gap penalties for terminal region
             #
             if (ui == 0) || (ui == seq.ungapped_length-1)
-              gap_score['DelO'] = @options[:multi] * @weights[seq.code] * @options[:gap_del_open_term]
-              gap_score['DelE'] = @options[:multi] * @weights[seq.code] * @options[:gap_del_ext_term]
-              gap_score['InsO'] = @options[:multi] * @weights[seq.code] * @options[:gap_ins_open_term]
-              gap_score['InsE'] = @options[:multi] * @weights[seq.code] * @options[:gap_ins_ext_term]
+              gap_score['DelO'] += @options[:multi] * @weights[seq.code] * @options[:gap_del_open_term]
+              gap_score['DelE'] += @options[:multi] * @weights[seq.code] * @options[:gap_del_ext_term]
+              gap_score['InsO'] += @options[:multi] * @weights[seq.code] * @options[:gap_ins_open_term]
+              gap_score['InsE'] += @options[:multi] * @weights[seq.code] * @options[:gap_ins_ext_term]
             else
               # 3.2.2. Gap penalties for deletion
               #
               if    ((seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
                      (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
-                gap_score['DelO'] = @options[:multi] * @weights[seq.code] * VLi
-                gap_score['DelE'] = @options[:multi] * @weights[seq.code] * VLe
+                gap_score['DelO'] += @options[:multi] * @weights[seq.code] * VLi
+                gap_score['DelE'] += @options[:multi] * @weights[seq.code] * VLe
               elsif ((seq.ungapped_environments[ui-1] =~ /^C/) &&       # i-1:  COIL
                      (seq.ungapped_environments[ui]   =~ /^[H|E|P]/))   # i:    SSE
-                gap_score['DelO'] = @options[:multi] * @weights[seq.code] * Li
-                gap_score['DelE'] = @options[:multi] * @weights[seq.code] * Le
+                gap_score['DelO'] += @options[:multi] * @weights[seq.code] * Li
+                gap_score['DelE'] += @options[:multi] * @weights[seq.code] * Le
               elsif ((seq.ungapped_environments[ui-1] =~ /^[H|E|P]/) && # i-1:  SSE
                      (seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
                      (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
-                gap_score['DelO'] = @options[:multi] * @weights[seq.code] * Hi
-                gap_score['DelE'] = @options[:multi] * @weights[seq.code] * He
+                gap_score['DelO'] += @options[:multi] * @weights[seq.code] * Hi
+                gap_score['DelE'] += @options[:multi] * @weights[seq.code] * He
               elsif ((seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
                      (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
-                gap_score['DelO'] = @options[:multi] * @weights[seq.code] * Li
-                gap_score['DelE'] = @options[:multi] * @weights[seq.code] * Le
+                gap_score['DelO'] += @options[:multi] * @weights[seq.code] * Li
+                gap_score['DelE'] += @options[:multi] * @weights[seq.code] * Le
               elsif ((seq.ungapped_environments[ui-1] =~ /^[H|E|P]/) && # i-1:  SSE
                      (seq.ungapped_environments[ui]   =~ /^C/))         # i+1:  COIL
-                gap_score['DelO'] = @options[:multi] * @weights[seq.code] * VLi
-                gap_score['DelE'] = @options[:multi] * @weights[seq.code] * VLe
+                gap_score['DelO'] += @options[:multi] * @weights[seq.code] * VLi
+                gap_score['DelE'] += @options[:multi] * @weights[seq.code] * VLe
               elsif ((seq.ungapped_environments[ui-1] =~ /^C/) &&       # i-1:  COIL
                      (seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
                      (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
-                gap_score['DelO'] = @options[:multi] * @weights[seq.code] * VLi
-                gap_score['DelE'] = @options[:multi] * @weights[seq.code] * VLe
+                gap_score['DelO'] += @options[:multi] * @weights[seq.code] * VLi
+                gap_score['DelE'] += @options[:multi] * @weights[seq.code] * VLe
               else
                 $logger.error [
                   "Unknown gap deletion category:",
@@ -125,20 +125,20 @@ module Gigue
               #
               if    ((seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
                      (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
-                gap_score['InsO'] = @options[:multi] * @weights[seq.code] * VLi
-                gap_score['InsE'] = @options[:multi] * @weights[seq.code] * VLe
+                gap_score['InsO'] += @options[:multi] * @weights[seq.code] * VLi
+                gap_score['InsE'] += @options[:multi] * @weights[seq.code] * VLe
               elsif ((seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
                      (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
-                gap_score['InsO'] = @options[:multi] * @weights[seq.code] * Hi
-                gap_score['InsE'] = @options[:multi] * @weights[seq.code] * He
+                gap_score['InsO'] += @options[:multi] * @weights[seq.code] * Hi
+                gap_score['InsE'] += @options[:multi] * @weights[seq.code] * He
               elsif ((seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
                      (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
-                gap_score['InsO'] = @options[:multi] * @weights[seq.code] * VLi
-                gap_score['InsE'] = @options[:multi] * @weights[seq.code] * VLe
+                gap_score['InsO'] += @options[:multi] * @weights[seq.code] * VLi
+                gap_score['InsE'] += @options[:multi] * @weights[seq.code] * VLe
               elsif ((seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
                      (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
-                gap_score['InsO'] = @options[:multi] * @weights[seq.code] * VLi
-                gap_score['InsE'] = @options[:multi] * @weights[seq.code] * VLe
+                gap_score['InsO'] += @options[:multi] * @weights[seq.code] * VLi
+                gap_score['InsE'] += @options[:multi] * @weights[seq.code] * VLe
               else
                 $logger.error [
                   "Unknown gap insertion category:",
@@ -180,7 +180,7 @@ module Gigue
       pid = 100.0 * Float(ident) / (align + intgp)
     end
 
-    def calculate_blosum_weights(weight = 60)
+    def calculate_blosum_weights(weight=60)
       weights   = {}
       clusters  = @sequences.map { |s| [s] }
       begin

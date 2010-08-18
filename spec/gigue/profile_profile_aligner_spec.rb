@@ -19,32 +19,32 @@ describe ProfileProfileAligner do
     @ppa = ProfileProfileAligner.new(@stp, @sqp)
   end
 
-  it "has a structural profile" do
+  it "has a structural profile object" do
     @ppa.structural_profile.should == @stp
   end
 
-  it "has a sequence profile" do
+  it "has a sequence profile object" do
     @ppa.sequence_profile.should == @sqp
-  end
-
-  it "#global_alignment_with_linear_gap_penalty returns an instance of ProfileProfileAlignmentLinearGap class" do
-    ali = @ppa.global_alignment_with_linear_gap_penalty
-    ali.should be_an_instance_of(ProfileProfileAlignmentLinearGap)
-  end
-
-  it "#global_alignment_with_affine_gap_penalty returns an instance of ProfileProfileAlignmentAffineGap class" do
-    ali = @ppa.global_alignment_with_affine_gap_penalty
-    ali.should be_an_instance_of(ProfileProfileAlignmentAffineGap)
   end
 
   it "#local_alignment_with_linear_gap_penalty returns an instance of ProfileProfileAlignmentLinearGap class" do
     ali = @ppa.local_alignment_with_linear_gap_penalty
-    ali.should be_an_instance_of(ProfileProfileAlignmentLinearGap)
+    ali.should be_an_instance_of(ProfileProfileLocalAlignmentLinearGap)
   end
 
   it "#local_alignment_with_affine_gap_penalty returns an instance of ProfileProfileAlignmentAffineGap class" do
     ali = @ppa.local_alignment_with_affine_gap_penalty
-    ali.should be_an_instance_of(ProfileProfileAlignmentAffineGap)
+    ali.should be_an_instance_of(ProfileProfileLocalAlignmentAffineGap)
+  end
+
+  it "#global_alignment_with_linear_gap_penalty returns an instance of ProfileProfileAlignmentLinearGap class" do
+    ali = @ppa.global_alignment_with_linear_gap_penalty
+    ali.should be_an_instance_of(ProfileProfileGlobalAlignmentLinearGap)
+  end
+
+  it "#global_alignment_with_affine_gap_penalty returns an instance of ProfileProfileAlignmentAffineGap class" do
+    ali = @ppa.global_alignment_with_affine_gap_penalty
+    ali.should be_an_instance_of(ProfileProfileGlobalAlignmentAffineGap)
   end
 
 end

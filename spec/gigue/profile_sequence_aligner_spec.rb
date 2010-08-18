@@ -12,32 +12,32 @@ describe ProfileSequenceAligner do
     @psa  = ProfileSequenceAligner.new(@prf, @seq)
   end
 
-  it "has profile" do
-    @psa.profile.should == @prf
+  it "has a profile" do
+    @psa.structural_profile.should == @prf
   end
 
-  it "has sequence" do
+  it "has a sequence" do
     @psa.sequence.should == @seq
   end
 
-  it "#global_alignment_with_linear_gap_penalty returns an instance of ProfileSequenceAlignmentLinearGap class" do
+  it "#global_alignment_with_linear_gap_penalty returns an instance of ProfileSequenceGlobalAlignmentLinearGap class" do
     ali = @psa.global_alignment_with_linear_gap_penalty
-    ali.should be_an_instance_of(ProfileSequenceAlignmentLinearGap)
+    ali.should be_an_instance_of(ProfileSequenceGlobalAlignmentLinearGap)
   end
 
-  it "#global_alignment_with_affine_gap_penalty returns an instance of ProfileSequenceAlignmentAffineGap class" do
+  it "#global_alignment_with_affine_gap_penalty returns an instance of ProfileSequenceGlobalAlignmentAffineGap class" do
     ali = @psa.global_alignment_with_affine_gap_penalty
-    ali.should be_an_instance_of(ProfileSequenceAlignmentAffineGap)
+    ali.should be_an_instance_of(ProfileSequenceGlobalAlignmentAffineGap)
   end
 
-  it "#local_alignment_with_linear_gap_penalty returns an instance of ProfileSequenceAlignmentLinearGap class" do
+  it "#local_alignment_with_linear_gap_penalty returns an instance of ProfileSequenceLocalAlignmentLinearGap class" do
     ali = @psa.local_alignment_with_linear_gap_penalty
-    ali.should be_an_instance_of(ProfileSequenceAlignmentLinearGap)
+    ali.should be_an_instance_of(ProfileSequenceLocalAlignmentLinearGap)
   end
 
-  it "#local_alignment_with_affine_gap_penalty returns an instance of ProfileSequenceAlignmentAffineGap class" do
+  it "#local_alignment_with_affine_gap_penalty returns an instance of ProfileSequenceLocalAlignmentAffineGap class" do
     ali = @psa.local_alignment_with_affine_gap_penalty
-    ali.should be_an_instance_of(ProfileSequenceAlignmentAffineGap)
+    ali.should be_an_instance_of(ProfileSequenceLocalAlignmentAffineGap)
   end
 
 end

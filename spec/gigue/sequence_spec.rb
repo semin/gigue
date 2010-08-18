@@ -59,4 +59,11 @@ describe Sequence do
     seqgl.object_id.should == seqg.object_id
   end
 
+  it "#shuffle_c returns a Sequnece object with shuffled data" do
+    shuffled_seq = @seq.shuffle_c
+    shuffled_seq.should be_an_instance_of(Sequence)
+    shuffled_seq.data.should_not == @data
+    shuffled_seq.amino_acids.should_not == @data.split('')
+  end
+
 end

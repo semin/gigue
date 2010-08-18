@@ -8,7 +8,7 @@ module Gigue
       @sequence_profile   = seq_prf
     end
 
-    def local_alignment_with_linear_gap_penalty(gap_del = 100, gap_ins = 100)
+    def local_alignment_with_linear_gap_penalty(gap_del=100, gap_ins=100)
       str_pss   = @structural_profile.positions
       seq_pss   = @sequence_profile.positions
       str_plen  = @structural_profile.length
@@ -64,8 +64,9 @@ module Gigue
           end
         end
       end
-      ProfileProfileAlignmentLinearGap.new(@structural_profile, @sequence_profile,
-                                           stmat, max_i, max_j)
+
+      ProfileProfileLocalAlignmentLinearGap.new(@structural_profile, @sequence_profile,
+                                                stmat, max_i, max_j)
     end
 
     def local_alignment_with_affine_gap_penalty
@@ -209,11 +210,12 @@ module Gigue
           end
         end
       end
-      ProfileProfileAlignmentAffineGap.new(@structural_profile, @sequence_profile,
-                                           mat, del, ins, max_i, max_j, max_m)
+
+      ProfileProfileLocalAlignmentAffineGap.new(@structural_profile, @sequence_profile,
+                                                mat, del, ins, max_i, max_j, max_m)
     end
 
-    def global_alignment_with_linear_gap_penalty(gap_del = 100, gap_ins = 100)
+    def global_alignment_with_linear_gap_penalty(gap_del=100, gap_ins=100)
       str_pss   = @structural_profile.positions
       seq_pss   = @sequence_profile.positions
       str_plen  = @structural_profile.length
@@ -259,8 +261,9 @@ module Gigue
                                 end
         end
       end
-      ProfileProfileAlignmentLinearGap.new(@structural_profile, @sequence_profile,
-                                           stmat)
+
+      ProfileProfileGlobalAlignmentLinearGap.new(@structural_profile, @sequence_profile,
+                                                 stmat)
     end
 
     def global_alignment_with_affine_gap_penalty
@@ -274,8 +277,10 @@ module Gigue
       del = NArray.object(str_plen+1, seq_plen+1)
       ins = NArray.object(str_plen+1, seq_plen+1)
 
-      # initialize score matrix and fill in the first row and column
+      # 1. initialize score matrix and fill in the first row and column
       prev_gap_ins_ext = nil
+
+      # 1.1 Range.each version
       (0..str_plen).each do |str_i|
         (0..seq_plen).each do |seq_i|
           mat[str_i, seq_i] = { :score => nil, :point => nil, :jump => nil }
@@ -299,8 +304,10 @@ module Gigue
         end
       end
 
-      # initialize deletion and insertion matrices
+      # 2. initialize deletion and insertion matrices
       infinity = 1/0.0
+
+      # 2.1 Range.each version
       (0..str_plen).each do |str_i|
         (0..seq_plen).each do |seq_i|
           del[str_i, seq_i] = { :score => (str_i == 0 || seq_i == 0 ? -infinity : nil), :point => nil, :jump => nil }
@@ -308,8 +315,10 @@ module Gigue
         end
       end
 
-      # fill in match, deletion, and insertion matrices
+      # 3. fill in match, deletion, and insertion matrices
       prev_gap_ins_ext = str_pss[0].gap_ins_ext
+
+      # 3.1 Range.each version
       (1..str_plen).each do |n|
         (1..seq_plen).each do |m|
           str_i, seq_i = n-1, m-1
@@ -374,11 +383,11 @@ module Gigue
             ins[n, m][:point] = UP
             $logger.debug "%-10s %5s %10s" % ["I-#{n}-#{m}", "POINT", "D-#{n}-#{m-1}"]
           end
-
         end
       end
-      ProfileProfileAlignmentAffineGap.new(@structural_profile, @sequence_profile,
-                                           mat, del, ins)
+
+      ProfileProfileGlobalAlignmentAffineGap.new(@structural_profile, @sequence_profile,
+                                                 mat, del, ins)
     end
   end
 end
