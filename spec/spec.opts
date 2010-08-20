@@ -1,4 +1,4 @@
 --colour
 --format profile
---timeout 20
+--timeout 50
 --diff

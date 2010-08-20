@@ -17,9 +17,9 @@ shared_examples_for "profile-profile alignment" do
     @ali.raw_score.should be_a_kind_of(Integer)
   end
 
-  it "#calculate_z_score returns Z-score as a float" do
-    @ali.calculate_z_score(2).should be_a_kind_of(Float)
-  end
+  #it "#calculate_z_score returns Z-score as a float" do
+    #@ali.calculate_z_score(10).should be_a_kind_of(Float)
+  #end
 
 end
 
@@ -41,7 +41,7 @@ describe ProfileProfileAlignment do
 
   describe ProfileProfileLocalAlignmentLinearGap do
     before(:all) do
-      @ali = @ppa.local_alignment_with_linear_gap_penalty
+      @ali = @ppa.local_alignment_linear_gap
     end
 
     it_should_behave_like "profile-profile alignment"
@@ -49,7 +49,7 @@ describe ProfileProfileAlignment do
 
   describe ProfileProfileLocalAlignmentAffineGap do
     before(:all) do
-      @ali = @ppa.local_alignment_with_affine_gap_penalty
+      @ali = @ppa.local_alignment_affine_gap
     end
 
     it_should_behave_like "profile-profile alignment"
@@ -57,7 +57,7 @@ describe ProfileProfileAlignment do
 
   describe ProfileProfileGlobalAlignmentLinearGap do
     before(:all) do
-      @ali = @ppa.global_alignment_with_linear_gap_penalty
+      @ali = @ppa.global_alignment_linear_gap
     end
 
     it_should_behave_like "profile-profile alignment"
@@ -65,7 +65,7 @@ describe ProfileProfileAlignment do
 
   describe ProfileProfileGlobalAlignmentAffineGap do
     before(:all) do
-      @ali = @ppa.global_alignment_with_affine_gap_penalty
+      @ali = @ppa.global_alignment_affine_gap
     end
 
     it_should_behave_like "profile-profile alignment"

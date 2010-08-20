@@ -35,6 +35,16 @@ module Gigue
       self
     end
 
+    def reverse
+      reversed_data = @amino_acids.reverse.join('')
+      self.class.new(reversed_data, @code, @description)
+    end
+
+    def reverse!
+      @amino_acids.reverse!
+      self
+    end
+
     def shuffle
       self.class.new(@amino_acids.shuffle.join(''), @code, @description)
     end
@@ -46,7 +56,7 @@ module Gigue
 
     inline do |builder|
       builder.include "<stdlib.h>"
-      builder.c_raw <<-EOC
+      builder.c_raw <<-EOCPP
         static VALUE shuffle_c(int argc, VALUE *argv, VALUE self) {
           VALUE aas1 = rb_iv_get(self, "@amino_acids");
           VALUE code = rb_iv_get(self, "@code");
@@ -70,7 +80,7 @@ module Gigue
 
           return rb_class_new_instance(3, args, rb_path2class("Sequence"));
         }
-      EOC
+      EOCPP
     end
 
   end

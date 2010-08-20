@@ -15,7 +15,6 @@ describe ProfileProfileAligner do
     blt = File.join(File.dirname(__FILE__), '..', 'test.blast.out6')
     msa = MultipleSequenceAlignment.create_from_psiblast_output_style6(blt)
     @sqp = msa.to_sequence_profile
-
     @ppa = ProfileProfileAligner.new(@stp, @sqp)
   end
 
@@ -27,24 +26,88 @@ describe ProfileProfileAligner do
     @ppa.sequence_profile.should == @sqp
   end
 
-  it "#local_alignment_with_linear_gap_penalty returns an instance of ProfileProfileAlignmentLinearGap class" do
-    ali = @ppa.local_alignment_with_linear_gap_penalty
+  it "#local_alignment_linear_gap returns an instance of ProfileProfileAlignmentLinearGap class" do
+    ali = @ppa.local_alignment_linear_gap
     ali.should be_an_instance_of(ProfileProfileLocalAlignmentLinearGap)
   end
 
-  it "#local_alignment_with_affine_gap_penalty returns an instance of ProfileProfileAlignmentAffineGap class" do
-    ali = @ppa.local_alignment_with_affine_gap_penalty
+  it "#local_alignment_linear_gap_rb returns an instance of ProfileProfileAlignmentLinearGap class" do
+    ali = @ppa.local_alignment_linear_gap_rb
+    ali.should be_an_instance_of(ProfileProfileLocalAlignmentLinearGap)
+  end
+
+  it "#local_alignment_linear_gap_cpp returns an instance of ProfileProfileAlignmentLinearGap class" do
+    ali = @ppa.local_alignment_linear_gap_cpp
+    ali.should be_an_instance_of(ProfileProfileLocalAlignmentLinearGap)
+  end
+
+  it "both #local_alignment_linear_gap_rb and #local_alignment_linear_gap_cpp return the same raw_score" do
+    ali_rb = @ppa.local_alignment_linear_gap_rb
+    ali_cpp = @ppa.local_alignment_linear_gap_cpp
+    ali_cpp.raw_score.should == ali_rb.raw_score
+  end
+
+  it "#local_alignment_affine_gap returns an instance of ProfileProfileAlignmentAffineGap class" do
+    ali = @ppa.local_alignment_affine_gap
     ali.should be_an_instance_of(ProfileProfileLocalAlignmentAffineGap)
   end
 
-  it "#global_alignment_with_linear_gap_penalty returns an instance of ProfileProfileAlignmentLinearGap class" do
-    ali = @ppa.global_alignment_with_linear_gap_penalty
+  it "#local_alignment_affine_gap_rb returns an instance of ProfileProfileAlignmentLinearGap class" do
+    ali = @ppa.local_alignment_affine_gap_rb
+    ali.should be_an_instance_of(ProfileProfileLocalAlignmentAffineGap)
+  end
+
+  it "#local_alignment_affine_gap_cpp returns an instance of ProfileProfileAlignmentAffineGap class" do
+    ali = @ppa.local_alignment_affine_gap_cpp
+    ali.should be_an_instance_of(ProfileProfileLocalAlignmentAffineGap)
+  end
+
+  it "both #local_alignment_affine_gap_rb and #local_alignment_affine_gap_cpp return the same raw_score" do
+    ali_rb = @ppa.local_alignment_affine_gap_rb
+    ali_cpp = @ppa.local_alignment_affine_gap_cpp
+    ali_cpp.raw_score.should == ali_rb.raw_score
+  end
+
+  it "#global_alignment_linear_gap returns an instance of ProfileProfileAlignmentLinearGap class" do
+    ali = @ppa.global_alignment_linear_gap
     ali.should be_an_instance_of(ProfileProfileGlobalAlignmentLinearGap)
   end
 
-  it "#global_alignment_with_affine_gap_penalty returns an instance of ProfileProfileAlignmentAffineGap class" do
-    ali = @ppa.global_alignment_with_affine_gap_penalty
+  it "#global_alignment_linear_gap_rb returns an instance of ProfileProfileAlignmentLinearGap class" do
+    ali = @ppa.global_alignment_linear_gap_rb
+    ali.should be_an_instance_of(ProfileProfileGlobalAlignmentLinearGap)
+  end
+
+  it "#global_alignment_linear_gap_cpp returns an instance of ProfileProfileAlignmentLinearGap class" do
+    ali = @ppa.global_alignment_linear_gap_cpp
+    ali.should be_an_instance_of(ProfileProfileGlobalAlignmentLinearGap)
+  end
+
+  it "both #global_alignment_linear_gap_rb and #global_alignment_linear_gap_cpp return the same raw_score" do
+    ali_rb = @ppa.global_alignment_linear_gap_rb
+    ali_cpp = @ppa.global_alignment_linear_gap_cpp
+    ali_cpp.raw_score.should == ali_rb.raw_score
+  end
+
+  it "#global_alignment_affine_gap returns an instance of ProfileProfileAlignmentAffineGap class" do
+    ali = @ppa.global_alignment_affine_gap
     ali.should be_an_instance_of(ProfileProfileGlobalAlignmentAffineGap)
+  end
+
+  it "#global_alignment_affine_gap_rb returns an instance of ProfileProfileAlignmentAffineGap class" do
+    ali = @ppa.global_alignment_affine_gap_rb
+    ali.should be_an_instance_of(ProfileProfileGlobalAlignmentAffineGap)
+  end
+
+  it "#global_alignment_affine_gap_cpp returns an instance of ProfileProfileAlignmentAffineGap class" do
+    ali = @ppa.global_alignment_affine_gap_cpp
+    ali.should be_an_instance_of(ProfileProfileGlobalAlignmentAffineGap)
+  end
+
+  it "both #global_alignment_affine_gap_rb and #global_alignment_affine_gap_cpp return the same raw_score" do
+    ali_rb = @ppa.global_alignment_affine_gap_rb
+    ali_cpp = @ppa.global_alignment_affine_gap_cpp
+    ali_cpp.raw_score.should == ali_rb.raw_score
   end
 
 end

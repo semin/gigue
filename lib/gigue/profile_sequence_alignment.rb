@@ -10,7 +10,7 @@ module Gigue
       @sequence           = seq
     end
 
-    # memoize function for Z-score
+    # memoize Z-score
     def z_score
       @z_score ||= calculate_z_score
     end
@@ -24,7 +24,7 @@ module Gigue
 
       out = opts[:os].is_a?(String) ? File.open(opts[:os], 'w') : opts[:os]
 
-      # print aligned structural profile sequences
+      # 1. print aligned structural profile sequences
       @structural_profile.sequences.each_with_index do |pseq, psi|
         out.puts ">#{pseq.code}"
         out.puts "structure" if opts[:type] == :pir
@@ -34,7 +34,7 @@ module Gigue
         }.join('')
       end
 
-      # print aligned query sequence
+      # 2. print aligned query sequence
       out.puts ">#{@sequence.code}"
       out.puts "sequence" if opts[:type] == :pir
       out.puts @aligned_amino_acids.map_with_index { |a, ai|
@@ -48,55 +48,72 @@ module Gigue
 
   class ProfileSequenceLocalAlignmentLinearGap < ProfileSequenceAlignment
 
-    attr_reader :stmatrix
+    attr_reader :score, :point, :max_m, :max_n
 
-    def initialize(prf, seq, stmatrix, i, j)
+    def initialize(prf, seq, score, point, max_m, max_n)
       super(prf, seq)
-      @stmatrix   = stmatrix
-      @raw_score  = @stmatrix[i, j][:score]
-      @aligned_structural_profile_positions, @aligned_amino_acids = traceback(i, j)
+      @score      = score
+      @point      = point
+      @max_m      = max_m
+      @max_n      = max_n
+      @raw_score  = @score[max_m][max_n]
+      traceback(max_m, max_n)
     end
 
-    def traceback(i, j)
+    def traceback(max_m, max_n)
       pss     = @structural_profile.positions
       aas     = @sequence.amino_acids
       str_cnt = @structural_profile.sequences.size
-      ali_prf = []
-      ali_seq = []
+      ali_pss = []
+      ali_aas = []
+      m, n    = max_m, max_n
+      log_fmt = "%-12s : %-5s : %12s"
 
       loop do
-        case @stmatrix[i, j][:point]
+        case @point[m][n]
         when NONE
           break
         when DIAG
-          ali_prf << pss[i-1]
-          ali_seq << aas[j-1]
-          i -= 1
-          j -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "DIAG", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          ali_aas << aas[m-1]
+          ali_pss << pss[n-1]
+          m -= 1
+          n -= 1
+          log_mat = "M[#{m}][#{n}]"
+          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          $logger.debug log_fmt % [log_mat, "DIAG", log_prb]
         when LEFT
-          ali_prf << pss[i-1]
-          ali_seq << '-'
-          i -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "INS", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          ali_pss << pss[n-1]
+          ali_aas << '-'
+          n -= 1
+          log_mat = "M[#{m}][#{n}]"
+          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          $logger.debug log_fmt % [log_mat, "LEFT", log_prb]
         when UP
-          ali_prf << StructuralProfilePosition.new('-'*str_cnt)
-          ali_seq << aas[j-1]
-          j -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "DEL", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          ali_pss << StructuralProfilePosition.new('-'*str_cnt)
+          ali_aas << aas[m-1]
+          m -= 1
+          log_mat = "M[#{m}][#{n}]"
+          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          $logger.debug log_fmt % [log_mat, " UP ", log_prb]
         else
-          $logger.error "Something wrong with pointing stage at i: #{i}, j: #{j}"
+          $logger.error "Something wrong with pointer of #{log_mat}"
           exit 1
         end
       end
-      [ali_prf.reverse!, ali_seq.reverse!]
+
+      @aligned_amino_acids = ali_aas.reverse!
+      @aligned_structural_profile_positions = ali_pss.reverse!
     end
 
     def calculate_z_score(iter=100)
-      scores = NArray.int(100)
+      scores = NArray.int(iter)
       (0...iter).each do |i|
         aligner   = ProfileSequenceAligner.new(@structural_profile, @sequence.shuffle)
-        scores[i] = aligner.local_alignment_with_linear_gap_penalty.raw_score
+        begin
+          scores[i] = aligner.local_alignment_linear_gap_cpp.raw_score
+        rescue
+          scores[i] = aligner.local_alignment_linear_gap_rb.raw_score
+        end
       end
       (@raw_score - scores.mean) / scores.stddev
     end
@@ -105,117 +122,156 @@ module Gigue
 
   class ProfileSequenceLocalAlignmentAffineGap < ProfileSequenceAlignment
 
-    attr_reader :match_stmatrix, :insertion_stmatrix, :deletion_stmatrix
+    attr_reader :mat_score, :mat_point, :mat_jump,
+                :del_score, :del_point, :del_jump,
+                :ins_score, :ins_point, :ins_jump
 
     def initialize(prf, seq,
-                   match_stmatrix, deletion_stmatrix, insertion_stmatrix,
-                   i, j, max_mat)
+                   mat_score, mat_point, mat_jump,
+                   del_score, del_point, del_jump,
+                   ins_score, ins_point, ins_jump,
+                   max_m, max_n)
       super(prf, seq)
-      @match_stmatrix     = match_stmatrix
-      @deletion_stmatrix  = deletion_stmatrix
-      @insertion_stmatrix = insertion_stmatrix
-      @raw_score          = case max_mat
-                            when :mat then @match_stmatrix[i,j][:score]
-                            when :del then @deletion_stmatrix[i,j][:score]
-                            when :ins then @insertion_stmatrix[i,j][:score]
-                            end
-      @aligned_structural_profile_positions, @aligned_amino_acids = traceback(i, j, max_mat)
+      @mat_score  = mat_score
+      @mat_point  = mat_point
+      @mat_jump   = mat_jump
+      @del_score  = del_score
+      @del_point  = del_point
+      @del_jump   = del_jump
+      @ins_score  = ins_score
+      @ins_point  = ins_point
+      @ins_jump   = ins_jump
+      @raw_score  = [
+        @mat_score[max_m][max_n],
+        @del_score[max_m][max_n],
+        @ins_score[max_m][max_n]
+      ].max
+      traceback(max_m, max_n)
     end
 
-    def traceback(i, j, max_mat)
+    def traceback(max_m, max_n)
       pss     = @structural_profile.positions
       aas     = @sequence.amino_acids
       str_cnt = @structural_profile.sequences.size
-      ali_prf = []
-      ali_seq = []
+      ali_pss = []
+      ali_aas = []
       pre_mat = nil
-      cur_mat = case max_mat
-                when :mat
-                  $logger.debug "START TRACEBACK FROM MAT MATRIX"
-                  pre_mat = :mat
-                  @match_stmatrix
-                when :del
-                  $logger.debug "START TRACEBACK FROM DEL MATRIX"
-                  pre_mat = :del
-                  @deletion_stmatrix
-                when :ins
-                  $logger.debug "START TRACEBACK FROM INS MATRIX"
-                  pre_mat = :ins
-                  @insertion_stmatrix
-                else
-                  $logger.error "Maximum matrix tag doesn't match with any matrix"
-                  exit 1
-                end
-
-      loop do
-        until cur_mat[i, j][:jump].nil?
-          case pre_mat
-          when :mat
-            ali_prf << pss[i-1]
-            ali_seq << aas[j-1]
-          when :del
-            ali_prf << pss[i-1]
-            ali_seq << '-'
-          when :ins
-            ali_prf << StructuralProfilePosition.new('-'*str_cnt)
-            ali_seq << aas[j-1]
-          end
-
-          jm, mi, jj  = cur_mat[i, j][:jump].split('-')
-          i, j        = Integer(mi), Integer(jj)
-          cur_mat     = case jm
-                        when 'M'
-                          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "JUMP", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
-                          pre_mat = :mat
-                          @match_stmatrix
-                        when 'D'
-                          $logger.debug "%-15s : %-4s : %s" % ["DEL[#{i}, #{j}]", "JUMP", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
-                          pre_mat = :del
-                          @deletion_stmatrix
-                        when 'I'
-                          $logger.debug "%-15s : %-4s : %s" % ["INS[#{i}, #{j}]", "JUMP", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
-                          pre_mat = :ins
-                          @insertion_stmatrix
-                        else
-                          $logger.warn "Something wrong in jumping step"
-                          exit 1
-                        end
+      m, n    = max_m, max_n
+      log_fmt = "%-12s : %-5s : %12s"
+      cur_score, cur_point, cur_jump =
+        case @raw_score
+        when @mat_score[m][n]
+          pre_mat = :mat
+          [@mat_score, @mat_point, @mat_jump]
+        when @del_score[m][n]
+          pre_mat = :del
+          [@del_score, @del_point, @del_jump]
+        when @ins_score[m][n]
+          pre_mat = :ins
+          [@ins_score, @ins_point, @ins_jump]
+        else
+          $logger.error "Maximum matrix tag doesn't match with any matrix"
+          exit 1
         end
 
-        point = cur_mat[i, j][:point]
+      $logger.debug "START TRACEBACK"
+
+      loop do
+        # jumping between matrices
+        until cur_jump[m][n].nil?
+          case pre_mat
+          when :mat
+            ali_pss << pss[n-1]
+            ali_aas << aas[m-1]
+            log_mat = "M[#{m}][#{n}]"
+            log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+            log_str = log_fmt % [log_mat, "JUMP", log_prb]
+            $logger.debug log_str
+          when :del
+            ali_pss << pss[n-1]
+            ali_aas << '-'
+            log_mat = "D[#{m}][#{n}]"
+            log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+            log_str = log_fmt % [log_mat, "JUMP", log_prb]
+            $logger.debug log_str
+          when :ins
+            ali_pss << StructuralProfilePosition.new('-'*str_cnt)
+            ali_aas << aas[m-1]
+            log_mat = "I[#{m}][#{n}]"
+            log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+            log_str = log_fmt % [log_mat, "JUMP", log_prb]
+            $logger.debug log_str
+          end
+
+          mat, m, n = cur_jump[m][n]
+          cur_score, cur_point, cur_jump =
+            case mat
+            when 'M'
+              pre_mat = :mat
+              [@mat_score, @mat_point, @mat_jump]
+            when 'D'
+              pre_mat = :del
+              [@del_score, @del_point, @del_jump]
+            when 'I'
+              pre_mat = :ins
+              [@ins_score, @ins_point, @ins_jump]
+            else
+              $logger.warn "Something wrong in jumnng step"
+              exit 1
+            end
+        end
+
+        # following pointers in a matrix
+        point = cur_point[m][n]
+
         case point
         when NONE
           $logger.debug "FINISH TRACEBACK"
           break
         when DIAG
-          ali_prf << pss[i-1]
-          ali_seq << aas[j-1]
-          i -= 1
-          j -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "DIAG", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          ali_aas << aas[m-1]
+          ali_pss << pss[n-1]
+          m -= 1
+          n -= 1
+          log_mat = "M[#{m}][#{n}]"
+          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          log_str = log_fmt % [log_mat, "DIAG", log_prb]
+          $logger.debug log_str
         when LEFT
-          ali_prf << pss[i-1]
-          ali_seq << '-'
-          i -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["DEL[#{i}, #{j}]", "LEFT", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          ali_aas << '-'
+          ali_pss << pss[n-1]
+          n -= 1
+          log_mat = "D[#{m}][#{n}]"
+          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          log_str = log_fmt % [log_mat, "LEFT", log_prb]
+          $logger.debug log_str
         when UP
-          ali_prf << StructuralProfilePosition.new('-'*str_cnt)
-          ali_seq << aas[j-1]
-          j -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["INS[#{i}, #{j}]", "UP", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          ali_aas << aas[m-1]
+          ali_pss << StructuralProfilePosition.new('-'*str_cnt)
+          m -= 1
+          log_mat = "I[#{m}][#{n}]"
+          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          log_str = log_fmt % [log_mat, " UP ", log_prb]
+          $logger.debug log_str
         else
-          $logger.error "Something wrong with pointing stage at i: #{i}, j: #{j}"
+          $logger.error "Something wrong with pointing stage at m: #{m}, n: #{n}"
           exit 1
         end
       end
-      [ali_prf.reverse!, ali_seq.reverse!]
+
+      @aligned_amino_acids = ali_aas.reverse!
+      @aligned_structural_profile_positions = ali_pss.reverse!
     end
 
     def calculate_z_score(iter=100)
-      scores = NArray.int(100)
+      scores = NArray.int(iter)
       (0...iter).each do |i|
         aligner   = ProfileSequenceAligner.new(@structural_profile, @sequence.shuffle)
-        scores[i] = aligner.local_alignment_with_affine_gap_penalty.raw_score
+        begin
+          scores[i] = aligner.local_alignment_affine_gap_cpp.raw_score
+        rescue
+          scores[i] = aligner.local_alignment_affine_gap_rb.raw_score
+        end
       end
       (@raw_score - scores.mean) / scores.stddev
     end
@@ -239,41 +295,45 @@ module Gigue
     end
 
     def traceback
-      pss     = @structural_profile.positions
       aas     = @sequence.amino_acids
+      pss     = @structural_profile.positions
       str_cnt = @structural_profile.sequences.size
-      ali_prf = []
-      ali_seq = []
-      i = @structural_profile.length
-      j = @sequence.length
+      ali_aas = []
+      ali_pss = []
+      m, n    = @sequence.length, @structural_profile.length
+      log_fmt = "%-12s : %-5s : %12s"
 
       loop do
-        case @point[j][i]
+        log_mat = "M[#{m}][#{n}]"
+        log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+
+        case @point[m][n]
         when NONE
           break
         when DIAG
-          ali_prf << pss[i-1]
-          ali_seq << aas[j-1]
-          i -= 1
-          j -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "DIAG", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          ali_aas << aas[m-1]
+          ali_pss << pss[n-1]
+          m -= 1
+          n -= 1
+          $logger.debug log_fmt % [log_mat, "DIAG", log_prb]
         when LEFT
-          ali_prf << pss[i-1]
-          ali_seq << '-'
-          i -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "INS", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          ali_aas << '-'
+          ali_pss << pss[n-1]
+          n -= 1
+          $logger.debug log_fmt % [log_mat, "LEFT", log_prb]
         when UP
-          ali_prf << StructuralProfilePosition.new('-'*str_cnt)
-          ali_seq << aas[j-1]
-          j -= 1
-          $logger.debug "%-15s : %-4s : %s" % ["MAT[#{i}, #{j}]", "DEL", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          ali_aas << aas[m-1]
+          ali_pss << StructuralProfilePosition.new('-'*str_cnt)
+          m -= 1
+          $logger.debug log_fmt % [log_mat, " UP ", log_prb]
         else
-          $logger.error "Something wrong with pointing stage at i: #{i}, j: #{j}"
+          $logger.error "Something wrong with pointer of #{log_mat}"
           exit 1
         end
       end
 
-      @aligned_structural_profile_positions, @aligned_amino_acids = ali_prf.reverse!, ali_seq.reverse!
+      @aligned_amino_acids = ali_aas.reverse!
+      @aligned_structural_profile_positions = ali_pss.reverse!
     end
 
     inline(:C) do |builder|
@@ -286,14 +346,14 @@ module Gigue
           VALUE pss = rb_funcall(stp, rb_intern("positions"), 0);
           VALUE aas = rb_funcall(seq, rb_intern("amino_acids"), 0);
           VALUE str_cnt = rb_funcall(rb_funcall(stp, rb_intern("sequences"), 0), rb_intern("size"), 0);
-          VALUE ali_prf = rb_ary_new();
-          VALUE ali_seq = rb_ary_new();
+          VALUE ali_pss = rb_ary_new();
+          VALUE ali_aas = rb_ary_new();
 
-          long i = NUM2LONG(rb_funcall(stp, rb_intern("length"), 0));
-          long j = NUM2LONG(rb_funcall(seq, rb_intern("length"), 0));
+          long pi = NUM2LONG(rb_funcall(stp, rb_intern("length"), 0));
+          long si = NUM2LONG(rb_funcall(seq, rb_intern("length"), 0));
 
           while(1) {
-            int p = FIX2INT(rb_ary_entry(rb_ary_entry(pnt, j), i));
+            int p = FIX2INT(rb_ary_entry(rb_ary_entry(pnt, si), pi));
             if (p == 1) {
               // UP
               VALUE gap = rb_str_new2("-");
@@ -302,20 +362,20 @@ module Gigue
               }
               VALUE args[1];
               args[0] = gap;
-              rb_ary_push(ali_prf, rb_class_new_instance(1, args, rb_path2class("StructuralProfilePosition")));
-              rb_ary_push(ali_seq, rb_ary_entry(aas, j-1));
-              j -= 1;
+              rb_ary_push(ali_pss, rb_class_new_instance(1, args, rb_path2class("StructuralProfilePosition")));
+              rb_ary_push(ali_aas, rb_ary_entry(aas, si-1));
+              si -= 1;
             } else if (p == 2) {
               // LEFT
-              rb_ary_push(ali_prf, rb_ary_entry(pss, i-1));
-              rb_ary_push(ali_seq, rb_str_new2("-"));
-              i -= 1;
+              rb_ary_push(ali_pss, rb_ary_entry(pss, pi-1));
+              rb_ary_push(ali_aas, rb_str_new2("-"));
+              pi -= 1;
             } else if (p == 3) {
               // DIAG
-              rb_ary_push(ali_prf, rb_ary_entry(pss, i-1));
-              rb_ary_push(ali_seq, rb_ary_entry(aas, j-1));
-              i -= 1;
-              j -= 1;
+              rb_ary_push(ali_pss, rb_ary_entry(pss, pi-1));
+              rb_ary_push(ali_aas, rb_ary_entry(aas, si-1));
+              pi -= 1;
+              si -= 1;
             } else if (p == 0) {
               // NONE
               break;
@@ -324,8 +384,8 @@ module Gigue
             }
           }
 
-          rb_iv_set(self, "@aligned_structural_profile_positions", rb_ary_reverse(ali_prf));
-          rb_iv_set(self, "@aligned_amino_acids", rb_ary_reverse(ali_seq));
+          rb_iv_set(self, "@aligned_structural_profile_positions", rb_ary_reverse(ali_pss));
+          rb_iv_set(self, "@aligned_amino_acids", rb_ary_reverse(ali_aas));
 
           return Qnil;
         }
@@ -333,10 +393,14 @@ module Gigue
     end
 
     def calculate_z_score(iter=100)
-      scores = NArray.int(100)
+      scores = NArray.int(iter)
       (0...iter).each do |i|
-        aligner   = ProfileSequenceAligner.new(@structural_profile, @sequence.shuffle)
-        scores[i] = aligner.global_alignment_with_linear_gap_penalty.raw_score
+        aligner = ProfileSequenceAligner.new(@structural_profile, @sequence.shuffle)
+        begin
+          scores[i] = aligner.global_alignment_linear_gap_cpp.raw_score
+        rescue
+          scores[i] = aligner.global_alignment_linear_gap_rb.raw_score
+        end
       end
       (@raw_score - scores.mean) / scores.stddev
     end
@@ -345,28 +409,28 @@ module Gigue
 
   class ProfileSequenceGlobalAlignmentAffineGap < ProfileSequenceAlignment
 
-    attr_reader :match_score, :match_point, :match_jump,
-                :deletion_score, :deletion_point, :deletion_jump,
-                :insertion_score, :insertion_point, :insertion_jump
+    attr_reader :mat_score, :mat_point, :mat_jump,
+                :del_score, :del_point, :del_jump,
+                :ins_score, :ins_point, :ins_jump
 
     def initialize(prf, seq,
                    mat_score, mat_point, mat_jump,
                    del_score, del_point, del_jump,
                    ins_score, ins_point, ins_jump)
       super(prf, seq)
-      @match_score      = mat_score
-      @match_point      = mat_point
-      @match_jump       = mat_jump
-      @deletion_score   = del_score
-      @deletion_point   = del_point
-      @deletion_jump    = del_jump
-      @insertion_score  = ins_score
-      @insertion_point  = ins_point
-      @insertion_jump   = ins_jump
-      @raw_score        = [
-        @match_score[-1][-1],
-        @deletion_score[-1][-1],
-        @insertion_score[-1][-1]
+      @mat_score  = mat_score
+      @mat_point  = mat_point
+      @mat_jump   = mat_jump
+      @del_score  = del_score
+      @del_point  = del_point
+      @del_jump   = del_jump
+      @ins_score  = ins_score
+      @ins_point  = ins_point
+      @ins_jump   = ins_jump
+      @raw_score  = [
+        @mat_score[-1][-1],
+        @del_score[-1][-1],
+        @ins_score[-1][-1]
       ].max
       traceback
     end
@@ -375,21 +439,22 @@ module Gigue
       pss     = @structural_profile.positions
       aas     = @sequence.amino_acids
       str_cnt = @structural_profile.sequences.size
-      ali_prf = []
-      ali_seq = []
+      ali_pss = []
+      ali_aas = []
       pre_mat = nil
-      pi, si  = [pss.length, aas.length]
+      m, n    = aas.length, pss.length
+      log_fmt = "%-12s : %-5s : %12s"
       cur_score, cur_point, cur_jump =
         case @raw_score
-        when @match_score[-1][-1]
+        when @mat_score[-1][-1]
           pre_mat = :mat
-          [@match_score, @match_point, @match_jump]
-        when @deletion_score[-1][-1]
+          [@mat_score, @mat_point, @mat_jump]
+        when @del_score[-1][-1]
           pre_mat = :del
-          [@deletion_score, @deletion_point, @deletion_jump]
-        when @insertion_score[-1][-1]
+          [@del_score, @del_point, @del_jump]
+        when @ins_score[-1][-1]
           pre_mat = :ins
-          [@insertion_score, @insertion_point, @insertion_jump]
+          [@ins_score, @ins_point, @ins_jump]
         else
           $logger.error "Raw score doesn't match with any matrix"
           exit 1
@@ -399,83 +464,100 @@ module Gigue
 
       loop do
         # jumping between matrices
-        until cur_jump[si][pi].nil?
+        until cur_jump[m][n].nil?
           case pre_mat
           when :mat
-            ali_prf << pss[pi-1]
-            ali_seq << aas[si-1]
+            ali_pss << pss[n-1]
+            ali_aas << aas[m-1]
+            log_mat = "M[#{m}][#{n}]"
+            log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+            log_str = log_fmt % [log_mat, "JUMP", log_prb]
+            $logger.debug log_str
           when :del
-            ali_prf << pss[pi-1]
-            ali_seq << '-'
+            ali_pss << pss[n-1]
+            ali_aas << '-'
+            log_mat = "D[#{m}][#{n}]"
+            log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+            log_str = log_fmt % [log_mat, "JUMP", log_prb]
+            $logger.debug log_str
           when :ins
-            ali_prf << StructuralProfilePosition.new('-'*str_cnt)
-            ali_seq << aas[si-1]
+            ali_pss << StructuralProfilePosition.new('-'*str_cnt)
+            ali_aas << aas[m-1]
+            log_mat = "I[#{m}][#{n}]"
+            log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+            log_str = log_fmt % [log_mat, "JUMP", log_prb]
+            $logger.debug log_str
           end
 
-          mat, si, pi = cur_jump[si][pi]
+          mat, m, n = cur_jump[m][n]
           cur_score, cur_point, cur_jump =
             case mat
             when 'M'
-              $logger.debug "%-15s : %-4s : %s" %
-              ["MAT[#{si}][#{pi}]", "JUMP", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
               pre_mat = :mat
-              [@match_score, @match_point, @match_jump]
+              [@mat_score, @mat_point, @mat_jump]
             when 'D'
-              $logger.debug "%-15s : %-4s : %s" %
-              ["DEL[#{si}][#{pi}]", "JUMP", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
               pre_mat = :del
-              [@deletion_score, @deletion_point, @deletion_jump]
+              [@del_score, @del_point, @del_jump]
             when 'I'
-              $logger.debug "%-15s : %-4s : %s" %
-              ["INS[#{si}][#{pi}]", "JUMP", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
               pre_mat = :ins
-              [@insertion_score, @insertion_point, @insertion_jump]
+              [@ins_score, @ins_point, @ins_jump]
             else
-              $logger.warn "Something wrong in jumping step"
+              $logger.warn "Something wrong in jumnng step"
               exit 1
             end
         end
 
         # following pointers in a matrix
-        point = cur_point[si][pi]
+        point = cur_point[m][n]
 
         case point
         when NONE
           $logger.debug "FINISH TRACEBACK"
           break
         when DIAG
-          ali_prf << pss[pi-1]
-          ali_seq << aas[si-1]
-          pi -= 1
-          si -= 1
-          $logger.debug "%-15s : %-4s : %s" %
-          ["MAT[#{si}][#{pi}]", "DIAG", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          ali_aas << aas[m-1]
+          ali_pss << pss[n-1]
+          m -= 1
+          n -= 1
+          log_mat = "M[#{m}][#{n}]"
+          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          log_str = log_fmt % [log_mat, "DIAG", log_prb]
+          $logger.debug log_str
         when LEFT
-          ali_prf << pss[pi-1]
-          ali_seq << '-'
-          pi -= 1
-          $logger.debug "%-15s : %-4s : %s" %
-          ["DEL[#{si}][#{pi}]", "LEFT", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          ali_aas << '-'
+          ali_pss << pss[n-1]
+          n -= 1
+          log_mat = "D[#{m}][#{n}]"
+          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          log_str = log_fmt % [log_mat, "LEFT", log_prb]
+          $logger.debug log_str
         when UP
-          ali_prf << StructuralProfilePosition.new('-'*str_cnt)
-          ali_seq << aas[si-1]
-          si -= 1
-          $logger.debug "%-15s : %-4s : %s" %
-          ["INS[#{si}][#{pi}]", "UP", "#{ali_prf[-1].probe} <=> #{ali_seq[-1]}"]
+          ali_aas << aas[m-1]
+          ali_pss << StructuralProfilePosition.new('-'*str_cnt)
+          m -= 1
+          log_mat = "I[#{m}][#{n}]"
+          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          log_str = log_fmt % [log_mat, " UP ", log_prb]
+          $logger.debug log_str
         else
-          $logger.error "Something wrong with pointing stage at si: #{si}, pi: #{pi}"
+          $logger.error "Something wrong with pointing stage at m: #{m}, n: #{n}"
           exit 1
         end
       end
 
-      @aligned_structural_profile_positions, @aligned_amino_acids = ali_prf.reverse!, ali_seq.reverse!
+      @aligned_amino_acids = ali_aas.reverse!
+      @aligned_structural_profile_positions = ali_pss.reverse!
     end
 
     def calculate_z_score(iter=100)
-      scores = NArray.int(100)
+      scores = NArray.int(iter)
       (0...iter).each do |i|
         aligner   = ProfileSequenceAligner.new(@structural_profile, @sequence.shuffle)
-        scores[i] = aligner.global_alignment_with_affine_gap_penalty.raw_score
+        begin
+          scores[i] = aligner.global_alignment_affine_gap_cpp.raw_score
+        rescue
+          scores[i] = aligner.global_alignment_affine_gap_rb.raw_score
+        end
       end
       (@raw_score - scores.mean) / scores.stddev
     end

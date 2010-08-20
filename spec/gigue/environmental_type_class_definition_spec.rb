@@ -4,7 +4,7 @@ include Gigue
 describe EnvironmentTypeClassDefinition do
 
   before(:all) do
-    @file   = File.join(File.dirname(__FILE__), '..', 'classdef_canonical_env5.dat')
+    @file   = File.join(File.dirname(__FILE__), '..', 'classdef_std64.dat')
     @envdef = EnvironmentTypeClassDefinition.new(@file)
     @envs   = @envdef.environments
   end

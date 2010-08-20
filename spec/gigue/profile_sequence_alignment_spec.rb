@@ -17,9 +17,9 @@ shared_examples_for "profile-sequence alignment" do
     @ali.raw_score.should be_a_kind_of(Integer)
   end
 
-  it "#calculate_z_score returns Z-score as a float" do
-    @ali.calculate_z_score(5).should be_a_kind_of(Float)
-  end
+  #it "#calculate_z_score returns Z-score as a float" do
+    #@ali.calculate_z_score(5).should be_a_kind_of(Float)
+  #end
 
 end
 
@@ -37,15 +37,16 @@ describe ProfileSequenceAlignment do
 
   describe ProfileSequenceLocalAlignmentLinearGap do
     before(:all) do
-      @ali = @psa.local_alignment_with_linear_gap_penalty
+      @ali = @psa.local_alignment_linear_gap
     end
 
     it_should_behave_like "profile-sequence alignment"
+
   end
 
   describe ProfileSequenceLocalAlignmentAffineGap do
     before(:all) do
-      @ali = @psa.local_alignment_with_affine_gap_penalty
+      @ali = @psa.local_alignment_affine_gap
     end
 
     it_should_behave_like "profile-sequence alignment"
@@ -53,7 +54,7 @@ describe ProfileSequenceAlignment do
 
   describe ProfileSequenceGlobalAlignmentLinearGap do
     before(:all) do
-      @ali = @psa.global_alignment_with_linear_gap_penalty
+      @ali = @psa.global_alignment_linear_gap
     end
 
     it_should_behave_like "profile-sequence alignment"
@@ -61,11 +62,10 @@ describe ProfileSequenceAlignment do
 
   describe ProfileSequenceGlobalAlignmentAffineGap do
     before(:all) do
-      @ali = @psa.global_alignment_with_affine_gap_penalty
+      @ali = @psa.global_alignment_affine_gap
     end
 
     it_should_behave_like "profile-sequence alignment"
   end
 
 end
-

@@ -20,5 +20,10 @@ module Gigue
       self.class.new(@msa.shuffle)
     end
 
+    def shuffle!
+      @msa = @msa.shuffle
+      @positions = @msa.columns.map { |c| SequenceProfilePosition.new(c.probe) }
+    end
+
   end
 end

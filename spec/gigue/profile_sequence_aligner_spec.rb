@@ -20,24 +20,64 @@ describe ProfileSequenceAligner do
     @psa.sequence.should == @seq
   end
 
-  it "#global_alignment_with_linear_gap_penalty returns an instance of ProfileSequenceGlobalAlignmentLinearGap class" do
-    ali = @psa.global_alignment_with_linear_gap_penalty
-    ali.should be_an_instance_of(ProfileSequenceGlobalAlignmentLinearGap)
-  end
-
-  it "#global_alignment_with_affine_gap_penalty returns an instance of ProfileSequenceGlobalAlignmentAffineGap class" do
-    ali = @psa.global_alignment_with_affine_gap_penalty
-    ali.should be_an_instance_of(ProfileSequenceGlobalAlignmentAffineGap)
-  end
-
-  it "#local_alignment_with_linear_gap_penalty returns an instance of ProfileSequenceLocalAlignmentLinearGap class" do
-    ali = @psa.local_alignment_with_linear_gap_penalty
+  it "#local_alignment_linear_gap returns an instance of ProfileSequenceLocalAlignmentLinearGap class" do
+    ali = @psa.local_alignment_linear_gap
     ali.should be_an_instance_of(ProfileSequenceLocalAlignmentLinearGap)
   end
 
-  it "#local_alignment_with_affine_gap_penalty returns an instance of ProfileSequenceLocalAlignmentAffineGap class" do
-    ali = @psa.local_alignment_with_affine_gap_penalty
+  it "#local_alignment_linear_gap_rb returns an instance of ProfileSequenceLocalAlignmentLinearGap class" do
+    ali = @psa.local_alignment_linear_gap_rb
+    ali.should be_an_instance_of(ProfileSequenceLocalAlignmentLinearGap)
+  end
+
+  it "#local_alignment_linear_gap_cpp returns an instance of ProfileSequenceLocalAlignmentLinearGap class" do
+    ali = @psa.local_alignment_linear_gap_cpp
+    ali.should be_an_instance_of(ProfileSequenceLocalAlignmentLinearGap)
+  end
+
+  it "#local_alignment_affine_gap returns an instance of ProfileSequenceLocalAlignmentAffineGap class" do
+    ali = @psa.local_alignment_affine_gap
     ali.should be_an_instance_of(ProfileSequenceLocalAlignmentAffineGap)
+  end
+
+  it "#local_alignment_affine_gap_rb returns an instance of ProfileSequenceLocalAlignmentAffineGap class" do
+    ali = @psa.local_alignment_affine_gap_rb
+    ali.should be_an_instance_of(ProfileSequenceLocalAlignmentAffineGap)
+  end
+
+  it "#local_alignment_affine_gap_cpp returns an instance of ProfileSequenceLocalAlignmentAffineGap class" do
+    ali = @psa.local_alignment_affine_gap_cpp
+    ali.should be_an_instance_of(ProfileSequenceLocalAlignmentAffineGap)
+  end
+
+  it "#global_alignment_linear_gap_cpp returns an instance of ProfileSequenceGlobalAlignmentLinearGap class" do
+    ali = @psa.global_alignment_linear_gap
+    ali.should be_an_instance_of(ProfileSequenceGlobalAlignmentLinearGap)
+  end
+
+  it "#global_alignment_linear_gap_rb returns an instance of ProfileSequenceGlobalAlignmentLinearGap class" do
+    ali = @psa.global_alignment_linear_gap_rb
+    ali.should be_an_instance_of(ProfileSequenceGlobalAlignmentLinearGap)
+  end
+
+  it "#global_alignment_linear_gap_cpp returns an instance of ProfileSequenceGlobalAlignmentLinearGap class" do
+    ali = @psa.global_alignment_linear_gap_cpp
+    ali.should be_an_instance_of(ProfileSequenceGlobalAlignmentLinearGap)
+  end
+
+  it "#global_alignment_affine_gap_cpp returns an instance of ProfileSequenceGlobalAlignmentAffineGap class" do
+    ali = @psa.global_alignment_affine_gap
+    ali.should be_an_instance_of(ProfileSequenceGlobalAlignmentAffineGap)
+  end
+
+  it "#global_alignment_affine_gap_rb returns an instance of ProfileSequenceGlobalAlignmentAffineGap class" do
+    ali = @psa.global_alignment_affine_gap_rb
+    ali.should be_an_instance_of(ProfileSequenceGlobalAlignmentAffineGap)
+  end
+
+  it "#global_alignment_affine_gap_cpp returns an instance of ProfileSequenceGlobalAlignmentAffineGap class" do
+    ali = @psa.global_alignment_affine_gap_cpp
+    ali.should be_an_instance_of(ProfileSequenceGlobalAlignmentAffineGap)
   end
 
 end
