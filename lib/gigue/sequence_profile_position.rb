@@ -3,36 +3,44 @@ module Gigue
 
     attr_reader :probe
 
-    def initialize(probe)
-      @probe    = probe
-      @aa_freqs = Hash.new(0)
-      @aa_probs = Hash.new(0.0)
-      @rel_aa_probs = Hash.new(0.0)
-      @probe.split('').each do |c|
-        if AMINO_ACIDS.include?(c) || c == '-'
-          @aa_freqs[c] += 1
-        else
-          $logger.warn "#{aa} is a unknown type of amino acid and ignored."
-        end
-      end
-      sum     = @aa_freqs.values.sum.to_f
-      aa_sum  = sum - @aa_freqs['-']
-      @aa_freqs.each do |a, f|
-        @aa_probs[a]      = f / sum
-        @rel_aa_probs[a]  = f / aa_sum
-      end
+    def initialize(probe, aa_raw_frqs=nil, aa_frqs=nil, aa_prbs=nil, aa_rel_prbs=nil)
+      @probe        = probe
+      @aa_raw_frqs  = aa_raw_frqs
+      @aa_frqs      = aa_frqs
+      @aa_prbs      = aa_prbs
+      @aa_rel_prbs  = aa_rel_prbs
     end
 
+    def raw_frequency_of(aa)
+      @aa_raw_frqs[aa]
+    end
+
+    # weighting applied
     def frequency_of(aa)
-      @aa_freqs[aa]
+      @aa_frqs[aa]
     end
 
+    # no weighting applied
+    def raw_probability_of(aa)
+      sum = Float(@aa_raw_frqs.values.sum)
+      @aa_raw_frqs[aa] / sum
+    end
+
+    # no weighting applied and no gap considered
+    def raw_relative_probability_of(aa)
+      gap = @aa_raw_frqs['-']
+      sum = Float(@aa_raw_frqs.values.sum - gap)
+      @aa_raw_frqs[aa] / sum
+    end
+
+    # weighting applied and gap considered
     def probability_of(aa)
-      @aa_probs[aa]
+      @aa_prbs[aa]
     end
 
+    # weighting applied and no gap considered
     def relative_probability_of(aa)
-      @rel_aa_probs[aa]
+      @aa_rel_prbs[aa]
     end
 
   end

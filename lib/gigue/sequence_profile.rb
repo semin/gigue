@@ -3,26 +3,39 @@ module Gigue
 
     attr_reader :msa, :positions
 
-    def initialize(msa)
-      @msa        = msa
-      @positions  = @msa.columns.map { |c| SequenceProfilePosition.new(c.probe) }
+    def initialize(msa, pss)
+      @msa = msa
+      @positions = pss
     end
 
     def sequences
       @msa.sequences
+      #seqs = Array.new(depth, '')
+      #(0...length).each do |pi|
+        #(0...depth).each do |si|
+          #seqs[si] += @positions[pi].probe[si]
+        #end
+      #end
+      #seqs
+    end
+
+    # no. of sequences
+    def depth
+      @msa.depth
+      #@positions[0].probe.size
     end
 
     def length
       @msa.length
+      #@positions.length
     end
 
     def shuffle
-      self.class.new(@msa.shuffle)
+      self.class.new(@msa, @positions.shuffle)
     end
 
     def shuffle!
-      @msa = @msa.shuffle
-      @positions = @msa.columns.map { |c| SequenceProfilePosition.new(c.probe) }
+      @positions.shuffle!
     end
 
   end

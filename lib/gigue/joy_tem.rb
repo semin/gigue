@@ -49,9 +49,7 @@ module Gigue
       seqs = []
       @entries.keys.each do |code|
         if @entries[code].has_key?('sequence')
-          seqs << OpenStruct.new
-          seqs[-1].code = code
-          seqs[-1].data = @entries[code]['sequence']
+          seqs << Sequence.new(@entries[code]['sequence'], code)
         else
           $logger.error "Cannot find 'sequence' data for #{code} in JOY template: #{@file}"
           exit 1

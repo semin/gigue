@@ -6,13 +6,14 @@ module Gigue
     VVLe, VLe, Le, He = 2, 2, 4, 8
 
     attr_reader :joytem, :essts, :sequences,
-                :weights, :length, :positions
+                :length, :depth, :positions
 
     def initialize(joy, essts, opts={})
       @joytem       = JoyTem.new(joy)
       @essts        = Essts.new(essts)
       @sequences    = @joytem.sequences
       @length       = @joytem.alignment_length
+      @depth        = @sequences.size
       @positions    = []
       @options      = {
         :weighting          => :blosum,
@@ -24,18 +25,14 @@ module Gigue
         :gap_del_ext_term   => VVLe
       }.merge!(opts)
 
-      #
       # 1. Weighting structures
-      #
-      if    @options[:weighting] == :blosum
-        @weights = calculate_blosum_weights
-      elsif @options[:weighting] == :va
-        @weights = calculate_va_weights
+      if    @options[:weighting] == :va
+        Sequence::calculate_va_weights(@sequences)
+      elsif @options[:weighting] == :blosum
+        Sequence::calculate_blosum_weights(@sequences)
       end
 
-      #
       # 2. Annotate structures with ESSTs and JOY
-      #
       @sequences.each do |seq|
         seq.environments = Array.new(@length, '')
         @essts.environments.each do |env|
@@ -54,9 +51,7 @@ module Gigue
         seq.ungapped_environments = seq.environments.select { |e| e !~ /-/ }
       end
 
-      #
       # 3. Generating PSSMs
-      #
       (0...@length).each do |pi|
         probe       = ''
         score       = NMatrix.int(1, @essts.rownames.size).fill!(0)
@@ -71,46 +66,46 @@ module Gigue
           else
             # 3.1. Scoring matrix
             #
-            score += @options[:multi] * @weights[seq.code] * @essts[env].scores_from(aa)
+            score += @options[:multi] * seq.weight * @essts[env].scores_from(aa)
             # 3.2. Gap penalties
             #
             ui = pi - seq.gap_cnt # ungapped index
             # 3.2.1. Gap penalties for terminal region
             #
             if (ui == 0) || (ui == seq.ungapped_length-1)
-              gap_score['DelO'] += @options[:multi] * @weights[seq.code] * @options[:gap_del_open_term]
-              gap_score['DelE'] += @options[:multi] * @weights[seq.code] * @options[:gap_del_ext_term]
-              gap_score['InsO'] += @options[:multi] * @weights[seq.code] * @options[:gap_ins_open_term]
-              gap_score['InsE'] += @options[:multi] * @weights[seq.code] * @options[:gap_ins_ext_term]
+              gap_score['DelO'] += @options[:multi] * seq.weight * @options[:gap_del_open_term]
+              gap_score['DelE'] += @options[:multi] * seq.weight * @options[:gap_del_ext_term]
+              gap_score['InsO'] += @options[:multi] * seq.weight * @options[:gap_ins_open_term]
+              gap_score['InsE'] += @options[:multi] * seq.weight * @options[:gap_ins_ext_term]
             else
               # 3.2.2. Gap penalties for deletion
               #
               if    ((seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
                      (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
-                gap_score['DelO'] += @options[:multi] * @weights[seq.code] * VLi
-                gap_score['DelE'] += @options[:multi] * @weights[seq.code] * VLe
+                gap_score['DelO'] += @options[:multi] * seq.weight * VLi
+                gap_score['DelE'] += @options[:multi] * seq.weight * VLe
               elsif ((seq.ungapped_environments[ui-1] =~ /^C/) &&       # i-1:  COIL
                      (seq.ungapped_environments[ui]   =~ /^[H|E|P]/))   # i:    SSE
-                gap_score['DelO'] += @options[:multi] * @weights[seq.code] * Li
-                gap_score['DelE'] += @options[:multi] * @weights[seq.code] * Le
+                gap_score['DelO'] += @options[:multi] * seq.weight * Li
+                gap_score['DelE'] += @options[:multi] * seq.weight * Le
               elsif ((seq.ungapped_environments[ui-1] =~ /^[H|E|P]/) && # i-1:  SSE
                      (seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
                      (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
-                gap_score['DelO'] += @options[:multi] * @weights[seq.code] * Hi
-                gap_score['DelE'] += @options[:multi] * @weights[seq.code] * He
+                gap_score['DelO'] += @options[:multi] * seq.weight * Hi
+                gap_score['DelE'] += @options[:multi] * seq.weight * He
               elsif ((seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
                      (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
-                gap_score['DelO'] += @options[:multi] * @weights[seq.code] * Li
-                gap_score['DelE'] += @options[:multi] * @weights[seq.code] * Le
+                gap_score['DelO'] += @options[:multi] * seq.weight * Li
+                gap_score['DelE'] += @options[:multi] * seq.weight * Le
               elsif ((seq.ungapped_environments[ui-1] =~ /^[H|E|P]/) && # i-1:  SSE
                      (seq.ungapped_environments[ui]   =~ /^C/))         # i+1:  COIL
-                gap_score['DelO'] += @options[:multi] * @weights[seq.code] * VLi
-                gap_score['DelE'] += @options[:multi] * @weights[seq.code] * VLe
+                gap_score['DelO'] += @options[:multi] * seq.weight * VLi
+                gap_score['DelE'] += @options[:multi] * seq.weight * VLe
               elsif ((seq.ungapped_environments[ui-1] =~ /^C/) &&       # i-1:  COIL
                      (seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
                      (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
-                gap_score['DelO'] += @options[:multi] * @weights[seq.code] * VLi
-                gap_score['DelE'] += @options[:multi] * @weights[seq.code] * VLe
+                gap_score['DelO'] += @options[:multi] * seq.weight * VLi
+                gap_score['DelE'] += @options[:multi] * seq.weight * VLe
               else
                 $logger.error [
                   "Unknown gap deletion category:",
@@ -125,20 +120,20 @@ module Gigue
               #
               if    ((seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
                      (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
-                gap_score['InsO'] += @options[:multi] * @weights[seq.code] * VLi
-                gap_score['InsE'] += @options[:multi] * @weights[seq.code] * VLe
+                gap_score['InsO'] += @options[:multi] * seq.weight * VLi
+                gap_score['InsE'] += @options[:multi] * seq.weight * VLe
               elsif ((seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
                      (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
-                gap_score['InsO'] += @options[:multi] * @weights[seq.code] * Hi
-                gap_score['InsE'] += @options[:multi] * @weights[seq.code] * He
+                gap_score['InsO'] += @options[:multi] * seq.weight * Hi
+                gap_score['InsE'] += @options[:multi] * seq.weight * He
               elsif ((seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
                      (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
-                gap_score['InsO'] += @options[:multi] * @weights[seq.code] * VLi
-                gap_score['InsE'] += @options[:multi] * @weights[seq.code] * VLe
+                gap_score['InsO'] += @options[:multi] * seq.weight * VLi
+                gap_score['InsE'] += @options[:multi] * seq.weight * VLe
               elsif ((seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
                      (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
-                gap_score['InsO'] += @options[:multi] * @weights[seq.code] * VLi
-                gap_score['InsE'] += @options[:multi] * @weights[seq.code] * VLe
+                gap_score['InsO'] += @options[:multi] * seq.weight * VLi
+                gap_score['InsE'] += @options[:multi] * seq.weight * VLe
               else
                 $logger.error [
                   "Unknown gap insertion category:",
@@ -158,75 +153,6 @@ module Gigue
       end
     end
 
-    def calculate_pid(seq1, seq2)
-      aas1  = seq1.split('')
-      aas2  = seq2.split('')
-      cols  = aas1.zip(aas2)
-      gap   = '-'
-      align = 0 # no. of aligned columns
-      ident = 0 # no. of identical columns
-      intgp = 0 # no. of internal gaps
-      cols.each do |col|
-        if (col[0] != gap) && (col[1] != gap)
-          align += 1
-          if col[0] == col[1]
-            ident += 1
-          end
-        elsif (((col[0] == gap) && (col[1] != gap)) ||
-                ((col[0] != gap) && (col[1] == gap)))
-          intgp += 1
-        end
-      end
-      pid = 100.0 * Float(ident) / (align + intgp)
-    end
-
-    def calculate_blosum_weights(weight=60)
-      weights   = {}
-      clusters  = @sequences.map { |s| [s] }
-      begin
-        continue = false
-        0.upto(clusters.size-2) do |i|
-          indexes = []
-          (i+1).upto(clusters.size-1) do |j|
-            found = false
-            clusters[i].each do |s1|
-              clusters[j].each do |s2|
-                if calculate_pid(s1.data, s2.data) >= weight
-                  indexes << j
-                  found = true
-                  break
-                end
-              end
-              break if found
-            end
-          end
-          unless indexes.empty?
-            continue  = true
-            group     = clusters[i]
-            indexes.each do |k|
-              group       = group.concat(clusters[k])
-              clusters[k] = nil
-            end
-            clusters[i] = group
-            clusters.compact!
-          end
-        end
-      end while(continue)
-
-      clusters.each do |cluster|
-        cluster.each do |seq|
-          weight = cluster.size / Float(@sequences.size)
-          weights[seq.code] = weight
-        end
-      end
-      weights
-    end
-
-    def calculate_va_weights
-      $logger.warn "To be implemented"
-      exit 1
-    end
-
     def to_fug(os = STDOUT)
       os = File.open(os, 'w') if os.is_a? String
       os.puts "%-30s %-s" % ['Command:', "gigue build -t #{@joytem.file} -s #{@essts.file}"]
@@ -242,7 +168,7 @@ module Gigue
       os.puts "%-30s %-d"     % ['Weighting_seed:', 0]
       os.puts
       for s in @sequences
-        os.puts "%-30s %-f"   % [' ' * 10 + s.code, @weights[s.code]]
+        os.puts "%-30s %-f"   % [' ' * 10 + s.code, s.weight]
       end
       os.puts
       os.puts "%-30s %-d"     % ['Multiple_factor:', @options[:multi]]

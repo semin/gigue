@@ -1,10 +1,12 @@
 $:.unshift(File.dirname(__FILE__)) unless
   $:.include?(File.dirname(__FILE__)) || $:.include?(File.expand_path(File.dirname(__FILE__)))
 
+require 'bio'
 require 'narray'
 require 'logger'
 require 'inline'
 require 'ostruct'
+require 'pathname'
 require File.join(File.dirname(__FILE__), 'array_extensions')
 require File.join(File.dirname(__FILE__), 'enumerable_extensions')
 require File.join(File.dirname(__FILE__), 'gigue', 'esst')

@@ -2,8 +2,8 @@ module Gigue
   class FugueProfile
 
     attr_reader :command, :length, :weighting,
-                :sequences, :weights, :multiple_factor,
-                :format, :rowsymbols, :colsymbols, :envsymbols,
+                :sequences, :multiple_factor, :format,
+                :rowsymbols, :colsymbols, :envsymbols,
                 :gap_open_ins_term, :gap_open_del_term,
                 :gap_ext_ins_term, :gap_ext_del_term,
                 :aa_colnames, :gap_colnames, :env_colnames,
@@ -11,7 +11,6 @@ module Gigue
 
     def initialize(file)
       @sequences  = []
-      @weights    = {}
       @positions  = []
       parse_tag   = nil
 
@@ -26,10 +25,8 @@ module Gigue
           @weighting  = 1
           parse_tag   = :weighting
         elsif line =~ /^\s+(\S+)\s+(\S+)\s*$/ && parse_tag == :weighting
-          @sequences << OpenStruct.new
-          @sequences[-1].code = $1
-          @sequences[-1].data = ''
-          @weights[$1]        = Float($2)
+          @sequences << Sequence.new('', $1)
+          @sequences[-1].weight = Float($2)
         elsif line =~ /^Multiple_factor:\s+(\S+)/
           @multiple_factor = Float($1)
         elsif line =~ /^Profile_format:\s+(\d+)\s+(\S+)/

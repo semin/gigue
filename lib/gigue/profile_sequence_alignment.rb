@@ -1,7 +1,8 @@
 module Gigue
   class ProfileSequenceAlignment
 
-    attr_reader :structural_profile, :sequence, :raw_score,
+    attr_reader :structural_profile, :sequence,
+                :raw_score, :reverse_score,
                 :aligned_structural_profile_positions,
                 :aligned_amino_acids
 
@@ -13,6 +14,10 @@ module Gigue
     # memoize Z-score
     def z_score
       @z_score ||= calculate_z_score
+    end
+
+    def reverse_score
+      @reverse_score ||= calculate_reverse_score
     end
 
     def to_flatfile(options={})
@@ -103,6 +108,15 @@ module Gigue
 
       @aligned_amino_acids = ali_aas.reverse!
       @aligned_structural_profile_positions = ali_pss.reverse!
+    end
+
+    def calculate_reverse_score
+      aligner = ProfileSequenceAligner.new(@structural_profile, @sequence.reverse)
+      begin
+        aligner.local_alignment_linear_gap_cpp.raw_score
+      rescue
+        aligner.local_alignment_linear_gap_rb.raw_score
+      end
     end
 
     def calculate_z_score(iter=100)
@@ -263,6 +277,15 @@ module Gigue
       @aligned_structural_profile_positions = ali_pss.reverse!
     end
 
+    def calculate_reverse_score
+      aligner = ProfileSequenceAligner.new(@structural_profile, @sequence.reverse)
+      begin
+        aligner.local_alignment_affine_gap_cpp.raw_score
+      rescue
+        aligner.local_alignment_affine_gap_rb.raw_score
+      end
+    end
+
     def calculate_z_score(iter=100)
       scores = NArray.int(iter)
       (0...iter).each do |i|
@@ -390,6 +413,15 @@ module Gigue
           return Qnil;
         }
       EOCPP
+    end
+
+    def calculate_reverse_score
+      aligner = ProfileSequenceAligner.new(@structural_profile, @sequence.reverse)
+      begin
+        aligner.global_alignment_linear_gap_cpp.raw_score
+      rescue
+        aligner.global_alignment_linear_gap_rb.raw_score
+      end
     end
 
     def calculate_z_score(iter=100)
@@ -547,6 +579,15 @@ module Gigue
 
       @aligned_amino_acids = ali_aas.reverse!
       @aligned_structural_profile_positions = ali_pss.reverse!
+    end
+
+    def calculate_reverse_score
+      aligner = ProfileSequenceAligner.new(@structural_profile, @sequence.reverse)
+      begin
+        aligner.global_alignment_affine_gap_cpp.raw_score
+      rescue
+        aligner.global_alignment_affine_gap_rb.raw_score
+      end
     end
 
     def calculate_z_score(iter=100)

@@ -1,4 +1,4 @@
-require File.join(File.dirname(__FILE__), '..', 'spec_helper.rb')
+require_relative '../spec_helper.rb'
 include Gigue
 
 describe MultipleSequenceAlignment do
@@ -31,8 +31,8 @@ describe MultipleSequenceAlignment do
     @msa.columns[0].probe.should == 'VI--II---IL---II-I-I------II-V---V--I-III----IV---III--V-VIV----I-------I---VI----------I-----I--VII-----V-V------I---V---I----------I---I--------V-I------------II--V---------I----------I----V-I------V--------I---------I---I---VI-I--II-II---V-I-V-----'
   end
 
-  it "#to_sequence_profile returns an instnace of SequenceProfile" do
-    @msa.to_sequence_profile.should be_an_instance_of(SequenceProfile)
-  end
+  #it "#to_sequence_profile returns an instnace of SequenceProfile" do
+    #@msa.to_sequence_profile.should be_an_instance_of(SequenceProfile)
+  #end
 
 end

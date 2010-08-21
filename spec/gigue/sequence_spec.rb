@@ -1,4 +1,4 @@
-require File.join(File.dirname(__FILE__), '..', 'spec_helper.rb')
+require_relative '../spec_helper.rb'
 include Gigue
 
 describe Sequence do
@@ -30,6 +30,11 @@ describe Sequence do
     @seq.length.should == @data.length
   end
 
+  it "#weight returns the weight of a sequence" do
+    @seq.weight = 0.2
+    @seq.weight.should == 0.2
+  end
+
   it "#[i] returns an amino acid character at a position, i in a sequence" do
     @seq[0].should == @data[0]
   end
@@ -59,11 +64,12 @@ describe Sequence do
     seqgl.object_id.should == seqg.object_id
   end
 
-  it "#shuffle_c returns a Sequnece object with shuffled data" do
-    shuffled_seq = @seq.shuffle_c
-    shuffled_seq.should be_an_instance_of(Sequence)
-    shuffled_seq.data.should_not == @data
-    shuffled_seq.amino_acids.should_not == @data.split('')
+  it "#pid(other) returns PID score with other sequence as a float between 0 and 1" do
+    data1 = 'AAACC'
+    data2 = 'AAACP'
+    seq1 = Sequence.new(data1)
+    seq2 = Sequence.new(data2)
+    seq1.pid(seq2).should == 0.8
   end
 
 end

@@ -1,4 +1,4 @@
-require File.join(File.dirname(__FILE__), '..', 'spec_helper.rb')
+require_relative '../spec_helper.rb'
 include Gigue
 
 shared_examples_for "profile-profile alignment" do

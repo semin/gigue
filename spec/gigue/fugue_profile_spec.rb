@@ -1,4 +1,4 @@
-require File.join(File.dirname(__FILE__), '..', 'spec_helper.rb')
+require_relative '../spec_helper.rb'
 include Gigue
 
 describe FugueProfile do
@@ -21,11 +21,11 @@ describe FugueProfile do
   end
 
   it "stores weights for sequences" do
-    @profile.weights[@profile.sequences[0].code] == 0.2
-    @profile.weights[@profile.sequences[1].code] == 0.2
-    @profile.weights[@profile.sequences[2].code] == 0.2
-    @profile.weights[@profile.sequences[3].code] == 0.2
-    @profile.weights[@profile.sequences[4].code] == 0.2
+    @profile.sequences[0].weight == 0.2
+    @profile.sequences[1].weight == 0.2
+    @profile.sequences[2].weight == 0.2
+    @profile.sequences[3].weight == 0.2
+    @profile.sequences[4].weight == 0.2
   end
 
   it "has positions" do
