@@ -235,5 +235,24 @@ module Gigue
       EOCPP
     end
 
+    def to_flatfile(options={})
+      opts = {
+        :os     => STDOUT,
+        :type   => :pir,
+        :width  => 70
+      }.merge!(options)
+
+      out = opts[:os].is_a?(String) ? File.open(opts[:os], 'w') : opts[:os]
+
+      out.puts opts[:type] == :pir ? ">P1;#{@code}" : ">#{@code}"
+      out.puts "sequence" if opts[:type] == :pir
+
+      aas = amino_acids << '*'
+      out.puts aas.map_with_index { |a, ai|
+        a + (ai > 0 && (ai+1) % opts[:width] == 0 ? "\n" : '')
+      }.join('').chomp
+
+      out.close if [File, String].include?(out.class)
+    end
   end
 end

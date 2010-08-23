@@ -5,13 +5,14 @@ module Gigue
 
     def initialize(file)
       @file     = file
+      io        = File.exist?(file) ? File.open(file, 'r') : StringIO.new(file)
       @entries  = {}
       ent_code  = nil
       ent_desc  = nil
       ent_data  = nil
       parse_tag = nil
 
-      IO.readlines(file).each_with_index do |line, li|
+      io.each_with_index do |line, li|
         line.chomp!
         if    line =~ /^#/ || line =~ /^\s*$/
           next

@@ -1,52 +1,51 @@
 module Gigue
-  class ProfileSequenceAlignment
+  class SequenceSequenceAlignment
 
-    attr_reader :structural_profile, :sequence,
+    attr_reader :sequence1, :sequence2,
                 :raw_score, :reverse_score,
-                :aligned_structural_profile_positions,
-                :aligned_amino_acids
+                :aligned_amino_acids1,
+                :aligned_amino_acids2
 
-    def initialize(prf, seq)
-      @structural_profile = prf
-      @sequence           = seq
+    def initialize(seq1, seq2)
+      @sequence1 = seq1
+      @sequence2 = seq2
     end
 
     def traceback_linear_gap(max_m=nil, max_n=nil)
-      pss     = @structural_profile.positions
-      aas     = @sequence.amino_acids
-      str_cnt = @structural_profile.sequences.size
-      ali_pss = []
-      ali_aas = []
-      max_m   = @sequence.length if max_m.nil?
-      max_n   = @structural_profile.length if max_n.nil?
-      m, n    = max_m, max_n
-      log_fmt = "%-12s : %-5s : %12s"
+      aas1      = @sequence1.amino_acids
+      aas2      = @sequence2.amino_acids
+      ali_aas1  = []
+      ali_aas2  = []
+      max_m     = @sequence2.length if max_m.nil?
+      max_n     = @sequence1.length if max_n.nil?
+      m, n      = max_m, max_n
+      log_fmt   = "%-12s : %-5s : %12s"
 
       loop do
         case @point[m][n]
         when NONE
           break
         when DIAG
-          ali_aas << aas[m-1]
-          ali_pss << pss[n-1]
+          ali_aas2 << aas2[m-1]
+          ali_aas1 << aas1[n-1]
           m -= 1
           n -= 1
           log_mat = "M[#{m}][#{n}]"
-          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          log_prb = "#{ali_aas1[-1]} <=> #{ali_aas2[-1]}"
           $logger.debug log_fmt % [log_mat, "DIAG", log_prb]
         when LEFT
-          ali_pss << pss[n-1]
-          ali_aas << '-'
+          ali_aas1 << aas1[n-1]
+          ali_aas2 << '-'
           n -= 1
           log_mat = "M[#{m}][#{n}]"
-          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          log_prb = "#{ali_aas1[-1]} <=> #{ali_aas2[-1]}"
           $logger.debug log_fmt % [log_mat, "LEFT", log_prb]
         when UP
-          ali_pss << StructuralProfilePosition.new('-'*str_cnt)
-          ali_aas << aas[m-1]
+          ali_aas1 << '-'
+          ali_aas2 << aas2[m-1]
           m -= 1
           log_mat = "M[#{m}][#{n}]"
-          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          log_prb = "#{ali_aas1[-1]} <=> #{ali_aas2[-1]}"
           $logger.debug log_fmt % [log_mat, " UP ", log_prb]
         else
           $logger.error "Something wrong with pointer of #{log_mat}"
@@ -54,21 +53,20 @@ module Gigue
         end
       end
 
-      @aligned_amino_acids = ali_aas.reverse!
-      @aligned_structural_profile_positions = ali_pss.reverse!
+      @aligned_amino_acids1 = ali_aas1.reverse!
+      @aligned_amino_acids2 = ali_aas2.reverse!
     end
 
     def traceback_affine_gap(max_m=nil, max_n=nil)
-      pss     = @structural_profile.positions
-      aas     = @sequence.amino_acids
-      str_cnt = @structural_profile.sequences.size
-      ali_pss = []
-      ali_aas = []
+      aas1      = @sequence1.amino_acids
+      aas2      = @sequence2.amino_acids
+      ali_aas1  = []
+      ali_aas2  = []
       pre_mat = nil
-      max_m   = @sequence.length if max_m.nil?
-      max_n   = @structural_profile.length if max_n.nil?
-      m, n    = max_m, max_n
-      log_fmt = "%-12s : %-5s : %12s"
+      max_m     = @sequence2.length if max_m.nil?
+      max_n     = @sequence1.length if max_n.nil?
+      m, n      = max_m, max_n
+      log_fmt   = "%-12s : %-5s : %12s"
       cur_score, cur_point, cur_jump =
         case @raw_score
         when @mat_score[m][n]
@@ -92,24 +90,24 @@ module Gigue
         until cur_jump[m][n].nil?
           case pre_mat
           when :mat
-            ali_pss << pss[n-1]
-            ali_aas << aas[m-1]
+            ali_aas1 << aas1[n-1]
+            ali_aas2 << aas2[m-1]
             log_mat = "M[#{m}][#{n}]"
-            log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+            log_prb = "#{ali_aas1[-1]} <=> #{ali_aas2[-1]}"
             log_str = log_fmt % [log_mat, "JUMP", log_prb]
             $logger.debug log_str
           when :del
-            ali_pss << pss[n-1]
-            ali_aas << '-'
+            ali_aas1 << aas1[n-1]
+            ali_aas2 << '-'
             log_mat = "D[#{m}][#{n}]"
-            log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+            log_prb = "#{ali_aas1[-1]} <=> #{ali_aas2[-1]}"
             log_str = log_fmt % [log_mat, "JUMP", log_prb]
             $logger.debug log_str
           when :ins
-            ali_pss << StructuralProfilePosition.new('-'*str_cnt)
-            ali_aas << aas[m-1]
+            ali_aas1 << '-'
+            ali_aas2 << aas2[m-1]
             log_mat = "I[#{m}][#{n}]"
-            log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+            log_prb = "#{ali_aas1[-1]} <=> #{ali_aas2[-1]}"
             log_str = log_fmt % [log_mat, "JUMP", log_prb]
             $logger.debug log_str
           end
@@ -140,28 +138,28 @@ module Gigue
           $logger.debug "FINISH TRACEBACK"
           break
         when DIAG
-          ali_aas << aas[m-1]
-          ali_pss << pss[n-1]
+          ali_aas2 << aas2[m-1]
+          ali_aas1 << aas1[n-1]
           m -= 1
           n -= 1
           log_mat = "M[#{m}][#{n}]"
-          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          log_prb = "#{ali_aas1[-1]} <=> #{ali_aas2[-1]}"
           log_str = log_fmt % [log_mat, "DIAG", log_prb]
           $logger.debug log_str
         when LEFT
-          ali_aas << '-'
-          ali_pss << pss[n-1]
+          ali_aas2 << '-'
+          ali_aas1 << aas1[n-1]
           n -= 1
           log_mat = "D[#{m}][#{n}]"
-          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          log_prb = "#{ali_aas1[-1]} <=> #{ali_aas2[-1]}"
           log_str = log_fmt % [log_mat, "LEFT", log_prb]
           $logger.debug log_str
         when UP
-          ali_aas << aas[m-1]
-          ali_pss << StructuralProfilePosition.new('-'*str_cnt)
+          ali_aas2 << aas2[m-1]
+          ali_aas1 << '-'
           m -= 1
           log_mat = "I[#{m}][#{n}]"
-          log_prb = "#{ali_pss[-1].probe} <=> #{ali_aas[-1]}"
+          log_prb = "#{ali_aas1[-1]} <=> #{ali_aas2[-1]}"
           log_str = log_fmt % [log_mat, " UP ", log_prb]
           $logger.debug log_str
         else
@@ -170,8 +168,8 @@ module Gigue
         end
       end
 
-      @aligned_amino_acids = ali_aas.reverse!
-      @aligned_structural_profile_positions = ali_pss.reverse!
+      @aligned_amino_acids1 = ali_aas1.reverse!
+      @aligned_amino_acids2 = ali_aas2.reverse!
     end
 
     # memoize Z-score
@@ -192,20 +190,16 @@ module Gigue
 
       out = opts[:os].is_a?(String) ? File.open(opts[:os], 'w') : opts[:os]
 
-      # 1. print aligned structural profile sequences
-      @structural_profile.sequences.each_with_index do |pseq, psi|
-        out.puts ">#{pseq.code}"
-        out.puts "structure" if opts[:type] == :pir
-        out.puts @aligned_structural_profile_positions.map_with_index { |p, pi|
-          ((p == '-' ? '-' : (p.probe[psi] == 'J' ? 'C' : p.probe[psi])) +
-           (pi > 0 && (pi+1) % opts[:width] == 0 ? "\n" : ''))
-        }.join('')
-      end
-
-      # 2. print aligned query sequence
-      out.puts ">#{@sequence.code}"
+      # print aligned sequences
+      out.puts opts[:type] == :pir ? ">P1;#{@sequence1.code}" : ">#{@sequence1.code}"
       out.puts "sequence" if opts[:type] == :pir
-      out.puts @aligned_amino_acids.map_with_index { |a, ai|
+      out.puts @aligned_amino_acids1.map_with_index { |a, ai|
+        a + (ai > 0 && (ai+1) % opts[:width] == 0 ? "\n" : '')
+      }.join('')
+
+      out.puts opts[:type] == :pir ? ">P1;#{@sequence2.code}" : ">#{@sequence2.code}"
+      out.puts"sequence" if opts[:type] == :pir
+      out.puts @aligned_amino_acids2.map_with_index { |a, ai|
         a + (ai > 0 && (ai+1) % opts[:width] == 0 ? "\n" : '')
       }.join('')
 
@@ -214,12 +208,12 @@ module Gigue
 
   end
 
-  class ProfileSequenceLocalAlignmentLinearGap < ProfileSequenceAlignment
+  class SequenceSequenceLocalAlignmentLinearGap < SequenceSequenceAlignment
 
     attr_reader :score, :point, :max_m, :max_n
 
-    def initialize(prf, seq, score, point, max_m, max_n)
-      super(prf, seq)
+    def initialize(seq1, seq2, score, point, max_m, max_n)
+      super(seq1, seq2)
       @score      = score
       @point      = point
       @max_m      = max_m
@@ -229,7 +223,7 @@ module Gigue
     end
 
     def calculate_reverse_score
-      aligner = ProfileSequenceAligner.new(@structural_profile, @sequence.reverse)
+      aligner = SequenceSequenceAligner.new(@sequence1, @sequence2.reverse)
       begin
         aligner.local_alignment_linear_gap_cpp.raw_score
       rescue
@@ -240,7 +234,7 @@ module Gigue
     def calculate_z_score(iter=100)
       scores = NArray.int(iter)
       (0...iter).each do |i|
-        aligner   = ProfileSequenceAligner.new(@structural_profile, @sequence.shuffle)
+        aligner   = SequenceSequenceAligner.new(@sequence1, @sequence2.shuffle)
         begin
           scores[i] = aligner.local_alignment_linear_gap_cpp.raw_score
         rescue
@@ -252,18 +246,18 @@ module Gigue
 
   end
 
-  class ProfileSequenceLocalAlignmentAffineGap < ProfileSequenceAlignment
+  class SequenceSequenceLocalAlignmentAffineGap < SequenceSequenceAlignment
 
     attr_reader :mat_score, :mat_point, :mat_jump,
                 :del_score, :del_point, :del_jump,
                 :ins_score, :ins_point, :ins_jump
 
-    def initialize(prf, seq,
+    def initialize(seq1, seq2,
                    mat_score, mat_point, mat_jump,
                    del_score, del_point, del_jump,
                    ins_score, ins_point, ins_jump,
                    max_m, max_n)
-      super(prf, seq)
+      super(seq1, seq2)
       @mat_score  = mat_score
       @mat_point  = mat_point
       @mat_jump   = mat_jump
@@ -282,7 +276,7 @@ module Gigue
     end
 
     def calculate_reverse_score
-      aligner = ProfileSequenceAligner.new(@structural_profile, @sequence.reverse)
+      aligner = SequenceSequenceAligner.new(@sequence1, @sequence2.reverse)
       begin
         aligner.local_alignment_affine_gap_cpp.raw_score
       rescue
@@ -293,7 +287,7 @@ module Gigue
     def calculate_z_score(iter=100)
       scores = NArray.int(iter)
       (0...iter).each do |i|
-        aligner   = ProfileSequenceAligner.new(@structural_profile, @sequence.shuffle)
+        aligner = SequenceSequenceAligner.new(@sequence1, @sequence2.shuffle)
         begin
           scores[i] = aligner.local_alignment_affine_gap_cpp.raw_score
         rescue
@@ -305,12 +299,12 @@ module Gigue
 
   end
 
-  class ProfileSequenceGlobalAlignmentLinearGap < ProfileSequenceAlignment
+  class SequenceSequenceGlobalAlignmentLinearGap < SequenceSequenceAlignment
 
     attr_reader :score, :point
 
-    def initialize(prf, seq, score, point)
-      super(prf, seq)
+    def initialize(seq1, seq2, score, point)
+      super(seq1, seq2)
       @score      = score
       @point      = point
       @raw_score  = @score[-1][-1]
@@ -318,7 +312,7 @@ module Gigue
     end
 
     def calculate_reverse_score
-      aligner = ProfileSequenceAligner.new(@structural_profile, @sequence.reverse)
+      aligner = SequenceSequenceAligner.new(@sequence1, @sequence2.reverse)
       begin
         aligner.global_alignment_linear_gap_cpp.raw_score
       rescue
@@ -329,7 +323,7 @@ module Gigue
     def calculate_z_score(iter=100)
       scores = NArray.int(iter)
       (0...iter).each do |i|
-        aligner = ProfileSequenceAligner.new(@structural_profile, @sequence.shuffle)
+        aligner = SequenceSequenceAligner.new(@sequence1, @sequence2.shuffle)
         begin
           scores[i] = aligner.global_alignment_linear_gap_cpp.raw_score
         rescue
@@ -341,17 +335,17 @@ module Gigue
 
   end
 
-  class ProfileSequenceGlobalAlignmentAffineGap < ProfileSequenceAlignment
+  class SequenceSequenceGlobalAlignmentAffineGap < SequenceSequenceAlignment
 
     attr_reader :mat_score, :mat_point, :mat_jump,
                 :del_score, :del_point, :del_jump,
                 :ins_score, :ins_point, :ins_jump
 
-    def initialize(prf, seq,
+    def initialize(seq1, seq2,
                    mat_score, mat_point, mat_jump,
                    del_score, del_point, del_jump,
                    ins_score, ins_point, ins_jump)
-      super(prf, seq)
+      super(seq1, seq2)
       @mat_score  = mat_score
       @mat_point  = mat_point
       @mat_jump   = mat_jump
@@ -370,7 +364,7 @@ module Gigue
     end
 
     def calculate_reverse_score
-      aligner = ProfileSequenceAligner.new(@structural_profile, @sequence.reverse)
+      aligner = SequenceSequenceAligner.new(@sequence1, @sequence2.reverse)
       begin
         aligner.global_alignment_affine_gap_cpp.raw_score
       rescue
@@ -381,7 +375,7 @@ module Gigue
     def calculate_z_score(iter=100)
       scores = NArray.int(iter)
       (0...iter).each do |i|
-        aligner   = ProfileSequenceAligner.new(@structural_profile, @sequence.shuffle)
+        aligner = SequenceSequenceAligner.new(@sequence1, @sequence2.shuffle)
         begin
           scores[i] = aligner.global_alignment_affine_gap_cpp.raw_score
         rescue
@@ -393,3 +387,4 @@ module Gigue
 
   end
 end
+
