@@ -1,7 +1,7 @@
 module Gigue
   class MultipleSequenceAlignment
 
-    def self.create_from_psiblast_output_style6(file, weighting=:va)
+    def self.create_from_psiblast_output_style6(file)
       # find maximum interation no.
       max_iter = 0
 
@@ -55,27 +55,18 @@ module Gigue
       code_to_data.each do |code, data|
         seqs << Sequence.new(data, "#{code}|#{code_to_start[code]}-#{code_to_end[code]}", "sequence")
       end
-      self.new(seqs, weighting)
+      self.new(seqs)
     end
 
 
     attr_reader :sequences, :length, :depth, :columns
 
-    def initialize(seqs, weighting=:va)
+    def initialize(seqs)
       @sequences  = seqs
       @depth      = seqs.size
       @length     = seqs[0].length
       @columns    = (0...@length).map do |mi|
         MultipleSequenceAlignmentColumn.new(@sequences.inject('') { |p, s| p + s.data[mi] })
-      end
-      @weighting  = weighting
-      if    weighting == :va
-        Sequence::calculate_va_weights_cpp(@sequences)
-      elsif weighting == :blosum
-        Sequence::calculate_blosum_weights(@sequences)
-      else
-        $logger.error "Unknown weighting scheme!"
-        exit 1
       end
     end
 
@@ -91,35 +82,7 @@ module Gigue
     end
 
     def to_sequence_profile
-      prf_pss = []
-
-      @columns.each do |col|
-        probe       = col.probe
-        aa_raw_frqs = Hash.new(0)
-        aa_frqs     = Hash.new(0.0)
-        aa_prbs     = Hash.new(0.0)
-        aa_rel_prbs = Hash.new(0.0)
-
-        probe.split('').each_with_index do |aa, si|
-          if AMINO_ACIDS.include?(aa) || aa == '-'
-            aa_frqs[aa] += 1 * @sequences[si].weight
-            aa_raw_frqs[aa] += 1
-          else
-            $logger.warn "#{aa} is a unknown type of amino acid and ignored."
-          end
-        end
-
-        sum     = aa_frqs.values.sum
-        aa_sum  = sum - aa_frqs['-']
-        aa_frqs.each do |aa, f|
-          aa_prbs[aa]     = f / sum
-          aa_rel_prbs[aa] = f / aa_sum if aa != '-'
-        end
-
-        prf_pss << SequenceProfilePosition.new(probe, aa_raw_frqs, aa_frqs, aa_prbs, aa_rel_prbs)
-      end
-
-      SequenceProfile.new(self, prf_pss)
+      SequenceProfile::create_from_multiple_sequence_alignment(self)
     end
 
   end

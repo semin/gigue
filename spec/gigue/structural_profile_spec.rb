@@ -6,7 +6,7 @@ describe StructuralProfile do
   before(:all) do
     @joy  = File.join(File.dirname(__FILE__), '..', 'd.240.1.1.tem')
     @esst = File.join(File.dirname(__FILE__), '..', 'ulla-mlr-logo-toccata-maskA.mat')
-    @stp  = StructuralProfile.new(@joy, @esst)
+    @stp  = StructuralProfile::create_from_joy_tem_and_essts(@joy, @esst)
   end
 
   it "#length returns the length of structural profile" do
@@ -18,7 +18,7 @@ describe StructuralProfile do
   end
 
   it "can weights sequences using a VA (Vingron and Argos) weighting scheme" do
-    va_stp = StructuralProfile.new(@joy, @esst, :weighting => :va)
+    va_stp = StructuralProfile::create_from_joy_tem_and_essts(@joy, @esst, :weighting => :va)
     va_stp.sequences[0].weight.should == 0.20124031688419095
     va_stp.sequences[1].weight.should == 0.19963716993679606
     va_stp.sequences[2].weight.should == 0.2041590477774935
@@ -27,7 +27,7 @@ describe StructuralProfile do
   end
 
   it "can weights sequences using a BLOSUM-like weighting scheme" do
-    blosum_stp = StructuralProfile.new(@joy, @esst, :weighting => :blosum)
+    blosum_stp = StructuralProfile.create_from_joy_tem_and_essts(@joy, @esst, :weighting => :blosum)
     blosum_stp.sequences[0].weight.should == 0.2
     blosum_stp.sequences[1].weight.should == 0.2
     blosum_stp.sequences[2].weight.should == 0.2

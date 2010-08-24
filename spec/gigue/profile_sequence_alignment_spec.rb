@@ -30,7 +30,7 @@ describe ProfileSequenceAlignment do
 
     @tem = File.join(File.dirname(__FILE__), "..", "d.240.1.1.tem")
     @sub = File.join(File.dirname(__FILE__), "..", "ulla-logo-smooth-toccata-maskA.mat")
-    @prf = StructuralProfile.new(@tem, @sub)
+    @prf = StructuralProfile.create_from_joy_tem_and_essts(@tem, @sub)
     @seq = Sequence.new('VRKSIGRIVTMKRNSRNLEEIKPYLFRAIEESYYKLDKRIPKAIHVVAVTEDLDIVSRGRTFPHGISKETAYSESVKLLQKILEEDERKIRRIGVRFSKFI', 'test')
     @psa = ProfileSequenceAligner.new(@prf, @seq)
   end

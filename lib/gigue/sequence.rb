@@ -1,6 +1,10 @@
 module Gigue
   class Sequence
 
+    def self.calculate_equal_weights(seqs)
+      seqs.each { |s| s.weight = 1.0 / seqs.size }
+    end
+
     def self.calculate_va_weights(seqs)
       begin
         self.calculate_va_weights_cpp(seqs)
@@ -123,7 +127,7 @@ module Gigue
     end
 
 
-    attr_accessor :amino_acids, :data, :code, :description,
+    attr_accessor :data, :code, :description,
                   :weight, :environments, :gap_cnt,
                   :ungapped_data, :ungapped_length, :ungapped_environments
 

@@ -6,7 +6,7 @@ describe ProfileSequenceAligner do
   before(:all) do
     $logger.level = Logger::WARN
 
-    file  = File.join(File.dirname(__FILE__), '..', 'd.240.1.1.fug')
+    file  = File.join(File.dirname(__FILE__), '..', 'd.240.1.1.fug.blo')
     @prf  = FugueProfile.new(file)
     @seq  = Sequence.new('VRKSIGRIVTMKRNSRNLEEIKPYLFRAIEESYYKLDKRIPKAIHVVAVTEDLDIVSRGRTFPHGISKETAYSESVKLLQKILEEDERKIRRIGVRFSKFI', 'test')
     @psa  = ProfileSequenceAligner.new(@prf, @seq)

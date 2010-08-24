@@ -30,7 +30,7 @@ describe ProfileProfileAlignment do
 
     tem   = File.join(File.dirname(__FILE__), '..', 'd.240.1.1.tem')
     sub   = File.join(File.dirname(__FILE__), '..', 'ulla-logo-smooth-toccata-maskA.mat')
-    @stp  = StructuralProfile.new(tem, sub)
+    @stp  = StructuralProfile.create_from_joy_tem_and_essts(tem, sub)
 
     blt   = File.join(File.dirname(__FILE__), '..', 'test.blast.out6')
     msa   = MultipleSequenceAlignment.create_from_psiblast_output_style6(blt)

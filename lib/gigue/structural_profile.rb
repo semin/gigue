@@ -8,36 +8,38 @@ module Gigue
     attr_reader :joytem, :essts, :sequences,
                 :length, :depth, :positions
 
-    def initialize(joy, essts, opts={})
-      @joytem       = JoyTem.new(joy)
-      @essts        = Essts.new(essts)
-      @sequences    = @joytem.sequences
-      @length       = @joytem.alignment_length
-      @depth        = @sequences.size
-      @positions    = []
-      @options      = {
-        :weighting          => :blosum,
+    def self.create_from_joy_tem_and_essts(joy, essts, options={})
+      joytem    = JoyTem.new(joy)
+      essts     = Essts.new(essts)
+      sequences = joytem.sequences
+      length    = joytem.alignment_length
+      depth     = sequences.size
+      positions = []
+      opts      = {
+        :weighting          => :va,
         :multi              => 10,
         :ignore_gap_weight  => true,
         :gap_ins_open_term  => VVLi,
         :gap_ins_ext_term   => VVLe,
         :gap_del_open_term  => VVLi,
         :gap_del_ext_term   => VVLe
-      }.merge!(opts)
+      }.merge!(options)
 
       # 1. Weighting structures
-      if    @options[:weighting] == :va
-        Sequence::calculate_va_weights(@sequences)
-      elsif @options[:weighting] == :blosum
-        Sequence::calculate_blosum_weights(@sequences)
+      if    opts[:weighting] == :va
+        Sequence::calculate_va_weights(sequences)
+      elsif opts[:weighting] == :blosum
+        Sequence::calculate_blosum_weights(sequences)
+      elsif opts[:weighting] == :equal
+        Sequence::calculate_equal_weights(sequences)
       end
 
       # 2. Annotate structures with ESSTs and JOY
-      @sequences.each do |seq|
-        seq.environments = Array.new(@length, '')
-        @essts.environments.each do |env|
+      sequences.each do |seq|
+        seq.environments = Array.new(length, '')
+        essts.environments.each do |env|
           next if env.silent
-          values = @joytem.entries[seq.code][env.name].split('')
+          values = joytem.entries[seq.code][env.name].split('')
           values.each_with_index do |value, vi|
             if value == '-'
               seq.environments[vi] += '-'
@@ -52,11 +54,11 @@ module Gigue
       end
 
       # 3. Generating PSSMs
-      (0...@length).each do |pi|
+      (0...length).each do |pi|
         probe       = ''
-        score       = NMatrix.int(1, @essts.rownames.size).fill!(0)
+        score       = NMatrix.int(1, essts.rownames.size).fill!(0)
         gap_score   = Hash.new(0)
-        @sequences.each do |seq|
+        sequences.each do |seq|
           seq.gap_cnt = 0 if pi == 0
           aa          = seq.data[pi]
           env         = seq.environments[pi]
@@ -65,92 +67,120 @@ module Gigue
             seq.gap_cnt += 1
           else
             # 3.1. Scoring matrix
-            #
-            score += @options[:multi] * seq.weight * @essts[env].scores_from(aa)
+            score += opts[:multi] * seq.weight * essts[env].scores_from(aa)
+
             # 3.2. Gap penalties
-            #
             ui = pi - seq.gap_cnt # ungapped index
-            # 3.2.1. Gap penalties for terminal region
-            #
+
+            # 3.2.1 Gap penalties for the first and the last column
             if (ui == 0) || (ui == seq.ungapped_length-1)
-              gap_score['DelO'] += @options[:multi] * seq.weight * @options[:gap_del_open_term]
-              gap_score['DelE'] += @options[:multi] * seq.weight * @options[:gap_del_ext_term]
-              gap_score['InsO'] += @options[:multi] * seq.weight * @options[:gap_ins_open_term]
-              gap_score['InsE'] += @options[:multi] * seq.weight * @options[:gap_ins_ext_term]
+              gap_score['DelO'] += opts[:multi] * seq.weight * opts[:gap_del_open_term]
+              gap_score['DelE'] += opts[:multi] * seq.weight * opts[:gap_del_ext_term]
+              gap_score['InsO'] += opts[:multi] * seq.weight * opts[:gap_ins_open_term]
+              gap_score['InsE'] += opts[:multi] * seq.weight * opts[:gap_ins_ext_term]
+              next
+            end
+
+            # 3.2.2. Gap penalties for deletion
+            if    ((seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
+                   (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
+              gap_score['DelO'] += opts[:multi] * seq.weight * VLi
+              gap_score['DelE'] += opts[:multi] * seq.weight * VLe
+            elsif ((seq.ungapped_environments[ui-1] =~ /^C/) &&       # i-1:  COIL
+                   (seq.ungapped_environments[ui]   =~ /^[H|E|P]/))   # i:    SSE
+              gap_score['DelO'] += opts[:multi] * seq.weight * Li
+              gap_score['DelE'] += opts[:multi] * seq.weight * Le
+            elsif ((seq.ungapped_environments[ui-1] =~ /^[H|E|P]/) && # i-1:  SSE
+                   (seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
+                   (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
+              gap_score['DelO'] += opts[:multi] * seq.weight * Hi
+              gap_score['DelE'] += opts[:multi] * seq.weight * He
+            elsif ((seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
+                   (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
+              gap_score['DelO'] += opts[:multi] * seq.weight * Li
+              gap_score['DelE'] += opts[:multi] * seq.weight * Le
+            elsif ((seq.ungapped_environments[ui-1] =~ /^[H|E|P]/) && # i-1:  SSE
+                   (seq.ungapped_environments[ui]   =~ /^C/))         # i+1:  COIL
+              gap_score['DelO'] += opts[:multi] * seq.weight * VLi
+              gap_score['DelE'] += opts[:multi] * seq.weight * VLe
+            elsif ((seq.ungapped_environments[ui-1] =~ /^C/) &&       # i-1:  COIL
+                   (seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
+                   (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
+              gap_score['DelO'] += opts[:multi] * seq.weight * VLi
+              gap_score['DelE'] += opts[:multi] * seq.weight * VLe
             else
-              # 3.2.2. Gap penalties for deletion
-              #
-              if    ((seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
-                     (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
-                gap_score['DelO'] += @options[:multi] * seq.weight * VLi
-                gap_score['DelE'] += @options[:multi] * seq.weight * VLe
-              elsif ((seq.ungapped_environments[ui-1] =~ /^C/) &&       # i-1:  COIL
-                     (seq.ungapped_environments[ui]   =~ /^[H|E|P]/))   # i:    SSE
-                gap_score['DelO'] += @options[:multi] * seq.weight * Li
-                gap_score['DelE'] += @options[:multi] * seq.weight * Le
-              elsif ((seq.ungapped_environments[ui-1] =~ /^[H|E|P]/) && # i-1:  SSE
-                     (seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
-                     (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
-                gap_score['DelO'] += @options[:multi] * seq.weight * Hi
-                gap_score['DelE'] += @options[:multi] * seq.weight * He
-              elsif ((seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
-                     (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
-                gap_score['DelO'] += @options[:multi] * seq.weight * Li
-                gap_score['DelE'] += @options[:multi] * seq.weight * Le
-              elsif ((seq.ungapped_environments[ui-1] =~ /^[H|E|P]/) && # i-1:  SSE
-                     (seq.ungapped_environments[ui]   =~ /^C/))         # i+1:  COIL
-                gap_score['DelO'] += @options[:multi] * seq.weight * VLi
-                gap_score['DelE'] += @options[:multi] * seq.weight * VLe
-              elsif ((seq.ungapped_environments[ui-1] =~ /^C/) &&       # i-1:  COIL
-                     (seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
-                     (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
-                gap_score['DelO'] += @options[:multi] * seq.weight * VLi
-                gap_score['DelE'] += @options[:multi] * seq.weight * VLe
-              else
-                $logger.error [
-                  "Unknown gap deletion category:",
-                   "#{ui-1}: #{ungapped_environments[ui-1]},",
-                   "#{ui  }: #{ungapped_environments[ui  ]},",
-                   "#{ui+1}: #{ungapped_environments[ui+1]}",
-                   "in #{seq.code}"
-                ].join(' ')
-                exit 1
-              end
-              # 3.2.3. Gap penalties for insertion
-              #
-              if    ((seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
-                     (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
-                gap_score['InsO'] += @options[:multi] * seq.weight * VLi
-                gap_score['InsE'] += @options[:multi] * seq.weight * VLe
-              elsif ((seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
-                     (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
-                gap_score['InsO'] += @options[:multi] * seq.weight * Hi
-                gap_score['InsE'] += @options[:multi] * seq.weight * He
-              elsif ((seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
-                     (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
-                gap_score['InsO'] += @options[:multi] * seq.weight * VLi
-                gap_score['InsE'] += @options[:multi] * seq.weight * VLe
-              elsif ((seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
-                     (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
-                gap_score['InsO'] += @options[:multi] * seq.weight * VLi
-                gap_score['InsE'] += @options[:multi] * seq.weight * VLe
-              else
-                $logger.error [
-                  "Unknown gap insertion category:",
-                   "#{ui-1}: #{ungapped_environments[ui-1]},",
-                   "#{ui  }: #{ungapped_environments[ui  ]},",
-                   "#{ui+1}: #{ungapped_environments[ui+1]}",
-                   "in #{seq.code}"
-                ].join(' ')
-                exit 1
-              end
+              $logger.error [
+                "Unknown gap deletion category:",
+                  "#{ui-1}: #{seq.ungapped_environments[ui-1]},",
+                  "#{ui  }: #{seq.ungapped_environments[ui  ]},",
+                  "#{ui+1}: #{seq.ungapped_environments[ui+1]}",
+                  "in #{seq.code}"
+              ].join(' ')
+              exit 1
+            end
+
+            # 3.2.3. Gap penalties for insertion
+            if    ((seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
+                   (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
+              gap_score['InsO'] += opts[:multi] * seq.weight * VLi
+              gap_score['InsE'] += opts[:multi] * seq.weight * VLe
+            elsif ((seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
+                   (seq.ungapped_environments[ui+1] =~ /^[H|E|P]/))   # i+1:  SSE
+              gap_score['InsO'] += opts[:multi] * seq.weight * Hi
+              gap_score['InsE'] += opts[:multi] * seq.weight * He
+            elsif ((seq.ungapped_environments[ui]   =~ /^[H|E|P]/) && # i:    SSE
+                   (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
+              gap_score['InsO'] += opts[:multi] * seq.weight * VLi
+              gap_score['InsE'] += opts[:multi] * seq.weight * VLe
+            elsif ((seq.ungapped_environments[ui]   =~ /^C/) &&       # i:    COIL
+                   (seq.ungapped_environments[ui+1] =~ /^C/))         # i+1:  COIL
+              gap_score['InsO'] += opts[:multi] * seq.weight * VLi
+              gap_score['InsE'] += opts[:multi] * seq.weight * VLe
+            else
+              $logger.error [
+                "Unknown gap insertion category:",
+                  "#{ui-1}: #{seq.ungapped_environments[ui-1]},",
+                  "#{ui  }: #{seq.ungapped_environments[ui  ]},",
+                  "#{ui+1}: #{seq.ungapped_environments[ui+1]}",
+                  "in #{seq.code}"
+              ].join(' ')
+              exit 1
             end
           end
         end
-        mat_score = @essts.rownames.to_hash(score.round.flatten.to_a)
+        mat_score = essts.rownames.to_hash(score.round.flatten.to_a)
         gap_score.each { |k, v| gap_score[k] = v.round }
-        @positions << StructuralProfilePosition.new(probe, mat_score, gap_score)
+        positions << StructuralProfilePosition.new(probe, mat_score, gap_score)
       end
+      add_opts = {
+        :joytem    => joytem,
+        :essts     => essts,
+        :sequences => sequences,
+      }
+      self.new(positions, opts.merge!(add_opts))
+    end
+
+    def initialize(pss, options={})
+      @opts = {
+      }.merge!(options)
+      @positions  = pss
+      @joytem     = @opts[:joytem]
+      @essts      = @opts[:essts]
+      @sequences  = @opts[:sequences]
+      @length     = @positions.length
+      @depth      = @sequences.size
+    end
+
+    def purge
+      pss = []
+      @positions.each do |ps|
+        w = 0
+        ps.probe.split('').each_with_index do |aa, si|
+          w += @sequences[si].weight if aa == '-'
+        end
+        pss << ps if w < 0.5
+      end
+      self.class.new(pss, @opts)
     end
 
     def to_fug(os = STDOUT)
@@ -163,7 +193,15 @@ module Gigue
       os.puts "%-30s %-5d %s" % ['Enhance_Num:', "#{@sequences.size}", 'sequences'] # ???
       os.puts "%-30s %-d"     % ['Enhance_Div:', 0] # ???
       os.puts
-      os.puts "%-30s %-5d %s" % ['Weighting:', 1, 'BlosumWeight -- weighting scheme based on single linkage clustering']
+      if    @opts[:weighting] == :va
+        os.puts "%-30s %-5d %s" % ['Weighting:', 2, 'VAWeight -- Vingon and Argo weight']
+      elsif @opts[:weighting] == :blosum
+        os.puts "%-30s %-5d %s" % ['Weighting:', 1, 'BlosumWeight -- weighting scheme based on single linkage clustering']
+      elsif @opts[:weighting] == :equal
+        os.puts "%-30s %-5d %s" % ['Weighting:', 0, 'EqualWeight -- weight each sequence equally']
+      else
+        $logger.error "Unknown weighting scheme!"
+      end
       os.puts "%-30s %-d"     % ['Weighting_threshold:', 0]
       os.puts "%-30s %-d"     % ['Weighting_seed:', 0]
       os.puts
@@ -171,20 +209,20 @@ module Gigue
         os.puts "%-30s %-f"   % [' ' * 10 + s.code, s.weight]
       end
       os.puts
-      os.puts "%-30s %-d"     % ['Multiple_factor:', @options[:multi]]
+      os.puts "%-30s %-d"     % ['Multiple_factor:', @opts[:multi]]
       os.puts "%-30s %-5d %s" % ['Profile_format:', 0, 'FUGUE']
       os.puts "%-30s %-5s"    % ['Similarity_matrix:', 'OFF'] # ???
       os.puts "%-30s %-5s"    % ['Similarity_matrix_offset:', 'OFF'] # ???
-      os.puts "%-30s %-5s"    % ['Ignore_gap_weight:', @options[:ignore_gap_weight] == true ? 'ON' : 'OFF']
+      os.puts "%-30s %-5s"    % ['Ignore_gap_weight:', @opts[:ignore_gap_weight] == true ? 'ON' : 'OFF']
       os.puts
       os.puts "%-30s %-5s"    % ['Symbol_in_row(sequence):', @essts.rownames.join]
       os.puts "%-30s %-5s"    % ['Symbol_in_column(structure):', @essts.colnames.join]
       os.puts "%-30s %-5s"    % ['Symbol_structural_feature:', @essts.environments.map { |e| e.labels.join if !e.silent }.join]
       os.puts
-      os.puts "%-30s %-5d"    % ['GapInsOpenTerminal',  @options[:gap_ins_open_term]]
-      os.puts "%-30s %-5d"    % ['GapDelOpenTerminal',  @options[:gap_del_open_term]]
-      os.puts "%-30s %-5d"    % ['GapInsExtTerminal',   @options[:gap_ins_ext_term]]
-      os.puts "%-30s %-5d"    % ['GapDelExtTerminal',   @options[:gap_del_ext_term]]
+      os.puts "%-30s %-5d"    % ['GapInsOpenTerminal',  @opts[:multi] * @opts[:gap_ins_open_term]]
+      os.puts "%-30s %-5d"    % ['GapDelOpenTerminal',  @opts[:multi] * @opts[:gap_del_open_term]]
+      os.puts "%-30s %-5d"    % ['GapInsExtTerminal',   @opts[:multi] * @opts[:gap_ins_ext_term]]
+      os.puts "%-30s %-5d"    % ['GapDelExtTerminal',   @opts[:multi] * @opts[:gap_del_ext_term]]
       os.puts
       os.puts "%-30s %-5d"    % ['EVD', 0] # ???
       os.puts "\n\n\n"

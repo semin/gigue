@@ -4,7 +4,7 @@ include Gigue
 describe FugueProfile do
 
   before(:all) do
-    file      = File.join(File.dirname(__FILE__), '..', 'd.240.1.1.fug')
+    file      = File.join(File.dirname(__FILE__), '..', 'd.240.1.1.fug.blo')
     @profile  = FugueProfile.new(file)
   end
 

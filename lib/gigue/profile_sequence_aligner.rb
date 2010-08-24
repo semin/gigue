@@ -1,11 +1,23 @@
 module Gigue
   class ProfileSequenceAligner
 
-    attr_reader :structural_profile, :sequence
+    attr_reader :structural_profile, :sequence, :algorithm
 
-    def initialize(prf, seq)
+    def initialize(prf, seq, algo=nil)
       @structural_profile = prf
       @sequence           = seq
+      str_seq_ratio       = prf.length / Float(seq.length)
+      if algo.nil?
+        if (str_seq_ratio > 1.5)
+          @algorithm = :glolocstr
+        elsif (str_seq_ratio < 0.6667)
+          @algorithm = :glolocseq
+        else
+          @algorithm = :global
+        end
+      else
+        @algorithm = algo
+      end
     end
 
     def local_alignment_linear_gap(options={})
@@ -673,12 +685,14 @@ module Gigue
 
           long gdel = NUM2LONG(rb_hash_aref(opts, ID2SYM(rb_intern("gap_del"))));
           long gins = NUM2LONG(rb_hash_aref(opts, ID2SYM(rb_intern("gap_ins"))));
+          VALUE alg = rb_iv_get(self, "@algorithm");
           VALUE stp = rb_iv_get(self, "@structural_profile");
           VALUE seq = rb_iv_get(self, "@sequence");
           VALUE pss = rb_funcall(stp, rb_intern("positions"), 0);
           VALUE aas = rb_funcall(seq, rb_intern("amino_acids"), 0);
           long plen = NUM2LONG(rb_funcall(stp, rb_intern("length"), 0));
           long slen = NUM2LONG(rb_funcall(seq, rb_intern("length"), 0));
+
 
           // 1. create score and point matrices
           VALUE score = rb_ary_new2(slen+1);
@@ -699,12 +713,24 @@ module Gigue
                 rb_ary_store(point_row, n, INT2FIX(0));
               } else if (n >  0 && m == 0) {
                 // LEFT
-                rb_ary_store(score_row, n, LONG2NUM(-gdel*n));
-                rb_ary_store(point_row, n, INT2FIX(2));
+                if (alg == ID2SYM(rb_intern("glolocstr"))) {
+                  // when GLOCAL and str : seq > 1.5 : 1 -> no terminal deletion penalty
+                  rb_ary_store(score_row, n, LONG2NUM(0));
+                  rb_ary_store(point_row, n, INT2FIX(2));
+                } else  {
+                  rb_ary_store(score_row, n, LONG2NUM(-gdel*n));
+                  rb_ary_store(point_row, n, INT2FIX(2));
+                }
               } else if (n == 0 && m >  0) {
                 // UP
-                rb_ary_store(score_row, n, LONG2NUM(-gins*m));
-                rb_ary_store(point_row, n, INT2FIX(1));
+                if (alg == ID2SYM(rb_intern("glolocseq"))) {
+                  // when GLOCAL and str : seq < 1 : 1.5 -> no terminal insertion penalty
+                  rb_ary_store(score_row, n, LONG2NUM(0));
+                  rb_ary_store(point_row, n, INT2FIX(1));
+                } else { 
+                  rb_ary_store(score_row, n, LONG2NUM(-gins*m));
+                  rb_ary_store(point_row, n, INT2FIX(1));
+                }
               }
             }
           }
@@ -717,8 +743,23 @@ module Gigue
 
               long cur = NUM2LONG(rb_funcall(ps, rb_intern("mat_score"), 1, aa));
               long mat = NUM2LONG(rb_ary_entry(rb_ary_entry(score, m-1), n-1)) + cur;
-              long del = NUM2LONG(rb_ary_entry(rb_ary_entry(score, m), n-1)) - gdel;
-              long ins = NUM2LONG(rb_ary_entry(rb_ary_entry(score, m-1), n)) - gins;
+              long del = 0;
+
+              if ((m == slen) && (alg == ID2SYM(rb_intern("glolocstr")))) {
+                // when GLOCAL and str : seq > 1.5 : 1 -> no deletion penalty
+                del = NUM2LONG(rb_ary_entry(rb_ary_entry(score, m), n-1));
+              } else {
+                del = NUM2LONG(rb_ary_entry(rb_ary_entry(score, m), n-1)) - gdel;
+              }
+
+              long ins = 0;
+
+              if ((n == plen) && (alg == ID2SYM(rb_intern("glolocseq")))) {
+                // when GLOCAL and str : seq > 1.5 : 1 -> no deletion penalty
+                ins = NUM2LONG(rb_ary_entry(rb_ary_entry(score, m-1), n));
+              } else {
+                ins = NUM2LONG(rb_ary_entry(rb_ary_entry(score, m-1), n)) - gins;
+              }
 
               if (mat >= ins) {
                 if (mat >= del) {
@@ -813,6 +854,7 @@ module Gigue
       builder.include '<limits>'
       builder.c_raw %q{
         static VALUE global_alignment_affine_gap_cpp(int argc, VALUE *argv, VALUE self) {
+          VALUE alg = rb_iv_get(self, "@algorithm");
           VALUE seq = rb_iv_get(self, "@sequence");
           VALUE stp = rb_iv_get(self, "@structural_profile");
           VALUE aas = rb_funcall(seq, rb_intern("amino_acids"), 0);
@@ -852,29 +894,49 @@ module Gigue
                 rb_ary_store(mat_point_row, n, INT2FIX(0));
               } else if ((m == 0) && (n == 1)) {
                 // LEFT
-                VALUE ps  = rb_ary_entry(pss, n-1);
-                long gap  = NUM2LONG(rb_funcall(ps, rb_intern("gap_del_open"), 0));
-                rb_ary_store(mat_score_row, n, LONG2NUM(-gap));
-                rb_ary_store(mat_point_row, n, INT2FIX(2));
+                if (alg == ID2SYM(rb_intern("glolocstr"))) {
+                  rb_ary_store(mat_score_row, n, LONG2NUM(0));
+                  rb_ary_store(mat_point_row, n, INT2FIX(2));
+                } else {
+                  VALUE ps  = rb_ary_entry(pss, n-1);
+                  long gap  = NUM2LONG(rb_funcall(ps, rb_intern("gap_del_open"), 0));
+                  rb_ary_store(mat_score_row, n, LONG2NUM(-gap));
+                  rb_ary_store(mat_point_row, n, INT2FIX(2));
+                }
               } else if ((m == 0) && (n > 1)) {
                 // LEFT
-                long prv  = NUM2LONG(rb_ary_entry(rb_ary_entry(mat_score, m), n-1));
-                VALUE ps  = rb_ary_entry(pss, n-1);
-                long gap  = NUM2LONG(rb_funcall(ps, rb_intern("gap_del_ext"), 0));
-                rb_ary_store(mat_score_row, n, LONG2NUM(prv-gap));
-                rb_ary_store(mat_point_row, n, INT2FIX(2));
+                if (alg == ID2SYM(rb_intern("glolocstr"))) {
+                  rb_ary_store(mat_score_row, n, LONG2NUM(0));
+                  rb_ary_store(mat_point_row, n, INT2FIX(2));
+                } else {
+                  long prv  = NUM2LONG(rb_ary_entry(rb_ary_entry(mat_score, m), n-1));
+                  VALUE ps  = rb_ary_entry(pss, n-1);
+                  long gap  = NUM2LONG(rb_funcall(ps, rb_intern("gap_del_ext"), 0));
+                  rb_ary_store(mat_score_row, n, LONG2NUM(prv-gap));
+                  rb_ary_store(mat_point_row, n, INT2FIX(2));
+                }
               } else if ((m == 1) && (n == 0)) {
                 // UP
-                VALUE ps  = rb_ary_entry(pss, n);
-                long gap  = NUM2LONG(rb_funcall(ps, rb_intern("gap_ins_open"), 0));
-                rb_ary_store(mat_score_row, n, LONG2NUM(-gap));
-                rb_ary_store(mat_point_row, n, INT2FIX(1));
-                prev_gap_ins_ext = NUM2LONG(rb_funcall(ps, rb_intern("gap_ins_ext"), 0));
+                if (alg == ID2SYM(rb_intern("glolocseq"))) {
+                  rb_ary_store(mat_score_row, n, LONG2NUM(0));
+                  rb_ary_store(mat_point_row, n, INT2FIX(1));
+                } else {
+                  VALUE ps  = rb_ary_entry(pss, n);
+                  long gap  = NUM2LONG(rb_funcall(ps, rb_intern("gap_ins_open"), 0));
+                  rb_ary_store(mat_score_row, n, LONG2NUM(-gap));
+                  rb_ary_store(mat_point_row, n, INT2FIX(1));
+                  prev_gap_ins_ext = NUM2LONG(rb_funcall(ps, rb_intern("gap_ins_ext"), 0));
+                }
               } else if ((m > 1) && (n == 0)) {
                 // UP
-                long prv = NUM2LONG(rb_ary_entry(rb_ary_entry(mat_score, m-1), n));
-                rb_ary_store(mat_score_row, n, LONG2NUM(prv-prev_gap_ins_ext));
-                rb_ary_store(mat_point_row, n, INT2FIX(1));
+                if (alg == ID2SYM(rb_intern("glolocseq"))) {
+                  rb_ary_store(mat_score_row, n, LONG2NUM(0));
+                  rb_ary_store(mat_point_row, n, INT2FIX(1));
+                } else {
+                  long prv = NUM2LONG(rb_ary_entry(rb_ary_entry(mat_score, m-1), n));
+                  rb_ary_store(mat_score_row, n, LONG2NUM(prv-prev_gap_ins_ext));
+                  rb_ary_store(mat_point_row, n, INT2FIX(1));
+                }
               }
             }
           }
@@ -949,8 +1011,13 @@ module Gigue
 
               prv_mat_score     = NUM2LONG(rb_ary_entry(rb_ary_entry(mat_score, m), n-1));
               prv_del_score     = NUM2LONG(rb_ary_entry(rb_ary_entry(del_score, m), n-1));
-              long gap_del_open = NUM2LONG(rb_funcall(ps, rb_intern("gap_del_open"), 0));
-              long gap_del_ext  = NUM2LONG(rb_funcall(ps, rb_intern("gap_del_ext"), 0));
+              long gap_del_open = 0;
+              long gap_del_ext  = 0;
+
+              if ((m != slen) || (alg != ID2SYM(rb_intern("glolocstr")))) {
+                gap_del_open = NUM2LONG(rb_funcall(ps, rb_intern("gap_del_open"), 0));
+                gap_del_ext  = NUM2LONG(rb_funcall(ps, rb_intern("gap_del_ext"), 0));
+              }
 
               long del_mat = prv_mat_score - gap_del_open;
               long del_del = prv_del_score - gap_del_ext;
@@ -967,7 +1034,13 @@ module Gigue
 
               prv_mat_score     = NUM2LONG(rb_ary_entry(rb_ary_entry(mat_score, m-1), n));
               prv_ins_score     = NUM2LONG(rb_ary_entry(rb_ary_entry(ins_score, m-1), n));
-              long gap_ins_open = NUM2LONG(rb_funcall(ps, rb_intern("gap_ins_open"), 0));
+              long gap_ins_open = 0;
+
+              if ((n != plen) || (alg != ID2SYM(rb_intern("glolocseq")))) {
+                gap_ins_open = NUM2LONG(rb_funcall(ps, rb_intern("gap_ins_open"), 0));
+              } else {
+                prev_gap_ins_ext = 0;
+              }
 
               long ins_mat = prv_mat_score - gap_ins_open;
               long ins_ins = prv_ins_score - prev_gap_ins_ext;

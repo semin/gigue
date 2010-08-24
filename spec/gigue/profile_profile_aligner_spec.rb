@@ -9,7 +9,7 @@ describe ProfileProfileAligner do
     # build structural profile
     tem = File.join(File.dirname(__FILE__), '..', 'd.240.1.1.tem')
     sub = File.join(File.dirname(__FILE__), '..', 'ulla-logo-smooth-toccata-maskA.mat')
-    @stp = StructuralProfile.new(tem, sub)
+    @stp = StructuralProfile.create_from_joy_tem_and_essts(tem, sub)
 
     # build sequence profile
     blt = File.join(File.dirname(__FILE__), '..', 'test.blast.out6')
