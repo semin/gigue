@@ -17,9 +17,9 @@ shared_examples_for "profile-sequence alignment" do
     @ali.raw_score.should be_a_kind_of(Integer)
   end
 
-  #it "#calculate_z_score returns Z-score as a float" do
-    #@ali.calculate_z_score(5).should be_a_kind_of(Float)
-  #end
+  it "#calculate_z_score returns Z-score as a float" do
+    @ali.calculate_z_score(5).should be_a_kind_of(Float)
+  end
 
 end
 

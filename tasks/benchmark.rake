@@ -322,6 +322,8 @@ namespace :bench do
       #end
     #end
 
+    log_fmt = "%8d %5d %2s %6s %10s %14s %8d %8s %5d %2s %6s %10s %14s %7d %7d %6.4 %10s"
+
     fm = ForkManager.new(8)
     fm.manage do
       dna_tems.each_with_index do |dna_tem, i|
@@ -384,9 +386,10 @@ namespace :bench do
                 gal.z_score,
                 psa.algorithm.to_s
               ]
-              $logger.info result.join("\t")
+              $logger.info log_fmt % result
               hits << result
             end
+
             sorted_hits = hits.sort_by { |h| h[-2] }.reverse
             res_file    = cur_dir + "../tmp/recog/dna/#{sccs}-multi_str-single_seq-#{env}.csv"
             res_file.open("w") do |file|
@@ -400,13 +403,13 @@ namespace :bench do
     end
   end
 
+
   desc "Remote homology recognition performance"
   task :recog_rna do
 
-    # load sequences
-    seqs = []
+    seqs    = []
+    scop20  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-20-1.75.fa"
 
-    scop20 = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-20-1.75.fa"
     Bio::FlatFile.open(Bio::FastaFormat, scop20) do |ff|
       ff.each do |entry|
         if sid_to_sccs[entry.entry_id.gsub(/^g/, 'd').gsub(/^e/, 'd')].match(/^[a|b|c|d|e|f|g]/)
@@ -481,9 +484,13 @@ namespace :bench do
                 gal.z_score,
                 psa.algorithm.to_s
               ]
-              #$logger.info result.join("\t")
+              #    46562    73  a    a.2      a.2.2        a.2.2.1    15737  d1coja1    89  a    a.2     a.2.11       a.2.11.1   -2588   -2854 1.9448     global
+
+              log_fmt = "%8d %5d %2s %5s %9s %12s %8d %-10s %5d %2s %5s %9s %12s %7d %7d %10.7f %10s"
+              $logger.info log_fmt % result
               hits << result
             end
+
             sorted_hits = hits.sort_by { |h| h[-2] }.reverse
             res_file    = cur_dir + "../tmp/recog/rna/#{sccs}-multi_str-single_seq-#{env}.csv"
             res_file.open("w") do |file|
