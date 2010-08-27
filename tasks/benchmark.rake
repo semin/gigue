@@ -341,10 +341,7 @@ namespace :bench do
                   seq_sfam  = seq_sccs[0..2].join('.')
                   seq_fam   = seq_sccs[0..3].join('.')
 
-                  if stp_class != seq_class
-                    $logger.warn "Skip comparison between #{stp_sccs} and #{seq_sccs}"
-                    next
-                  end
+                  next if stp_class != seq_class
 
                   psa = ProfileSequenceAligner.new(stp, seq)
                   begin
@@ -430,10 +427,7 @@ namespace :bench do
                   seq_sfam  = seq_sccs[0..2].join('.')
                   seq_fam   = seq_sccs[0..3].join('.')
 
-                  if stp_class != seq_class
-                    $logger.warn "Skip comparison between #{stp_sccs} and #{seq_sccs}"
-                    next
-                  end
+                  next if stp_class != seq_class
 
                   psa = ProfileSequenceAligner.new(stp, seq)
                   begin
@@ -519,10 +513,7 @@ namespace :bench do
                   seq_sfam  = seq_sccs[0..2].join('.')
                   seq_fam   = seq_sccs[0..3].join('.')
 
-                  if stp_class != seq_class
-                    $logger.warn "Skip comparison between #{stp_sccs} and #{seq_sccs}"
-                    next
-                  end
+                  next if stp_class != seq_class
 
                   psa = ProfileSequenceAligner.new(stp, seq)
                   begin
@@ -608,10 +599,7 @@ namespace :bench do
                   seq_sfam  = seq_sccs[0..2].join('.')
                   seq_fam   = seq_sccs[0..3].join('.')
 
-                  if stp_class != seq_class
-                    $logger.warn "Skip comparison between #{stp_sccs} and #{seq_sccs}"
-                    next
-                  end
+                  next if stp_class != seq_class
 
                   psa = ProfileSequenceAligner.new(stp, seq)
                   begin
