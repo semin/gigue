@@ -1,115 +1,115 @@
-include Gigue
-require 'fork_manager'
-
-cur_dir = Pathname.new(__FILE__).dirname
-
-# logger settings
-$logger.level   = Logger::INFO
-
-# load SCOP description file
-sunid_to_sccs = {}
-sid_to_sccs   = {}
-sid_to_sunid  = {}
-scop_des_file = cur_dir + "../data/dir.des.scop.txt_1.75"
-
-IO.foreach(scop_des_file) do |line|
-  line.chomp!
-  if line =~ /^#/
-    next
-  elsif (cols = line.split("\t")).size == 5
-    sunid_to_sccs[cols[0]] = cols[2]
-    sid_to_sccs[cols[3]] = cols[2] if cols[1] == "px"
-    sid_to_sunid[cols[3]] = cols[0] if cols[1] == "px"
-  else
-    warn "? #{line}"
-  end
-end
-
-dna_tems = Pathname::glob(cur_dir + "../data/bipa/scop/rep/dna/*/dnamodsalign.tem")
-rna_tems = Pathname::glob(cur_dir + "../data/bipa/scop/rep/rna/*/rnamodsalign.tem")
-
-dna_esst64_sigma5       = cur_dir + "../data/ulla-ent-dna-esst64-pid60-sigma5-logo.mat"
-dna_esst128_sigma5      = cur_dir + "../data/ulla-ent-dna-esst128-pid60-sigma5-logo.mat"
-dna_esst64_sigma1       = cur_dir + "../data/ulla-ent-dna-esst64-pid60-sigma1-logo.mat"
-dna_esst128_sigma1      = cur_dir + "../data/ulla-ent-dna-esst128-pid60-sigma1-logo.mat"
-dna_esst64_sigma0_1     = cur_dir + "../data/ulla-ent-dna-esst64-pid60-sigma0.1-logo.mat",
-dna_esst128_sigma0_1    = cur_dir + "../data/ulla-ent-dna-esst128-pid60-sigma0.1-logo.mat",
-dna_esst64_sigma0_01    = cur_dir + "../data/ulla-ent-dna-esst64-pid60-sigma0.01-logo.mat",
-dna_esst128_sigma0_01   = cur_dir + "../data/ulla-ent-dna-esst128-pid60-sigma0.01-logo.mat",
-dna_esst64_sigma0_001   = cur_dir + "../data/ulla-ent-dna-esst64-pid60-sigma0.001-logo.mat",
-dna_esst128_sigma0_001  = cur_dir + "../data/ulla-ent-dna-esst128-pid60-sigma0.001-logo.mat",
-dna_esst64_sigma0_002   = cur_dir + "../data/ulla-ent-dna-esst64-pid60-sigma0.002-logo.mat",
-dna_esst128_sigma0_002  = cur_dir + "../data/ulla-ent-dna-esst128-pid60-sigma0.002-logo.mat",
-
-rna_esst64_sigma5       = cur_dir + "../data/ulla-ent-rna-esst64-pid60-sigma5-logo.mat"
-rna_esst128_sigma5      = cur_dir + "../data/ulla-ent-rna-esst128-pid60-sigma5-logo.mat"
-rna_esst64_sigma1       = cur_dir + "../data/ulla-ent-rna-esst64-pid60-sigma1-logo.mat"
-rna_esst128_sigma1      = cur_dir + "../data/ulla-ent-rna-esst128-pid60-sigma1-logo.mat"
-rna_esst64_sigma0_1     = cur_dir + "../data/ulla-ent-rna-esst64-pid60-sigma0.1-logo.mat",
-rna_esst128_sigma0_1    = cur_dir + "../data/ulla-ent-rna-esst128-pid60-sigma0.1-logo.mat",
-rna_esst64_sigma0_01    = cur_dir + "../data/ulla-ent-rna-esst64-pid60-sigma0.01-logo.mat",
-rna_esst128_sigma0_01   = cur_dir + "../data/ulla-ent-rna-esst128-pid60-sigma0.01-logo.mat",
-rna_esst64_sigma0_001   = cur_dir + "../data/ulla-ent-rna-esst64-pid60-sigma0.001-logo.mat",
-rna_esst128_sigma0_001  = cur_dir + "../data/ulla-ent-rna-esst128-pid60-sigma0.001-logo.mat",
-rna_esst64_sigma0_002   = cur_dir + "../data/ulla-ent-rna-esst64-pid60-sigma0.002-logo.mat",
-rna_esst128_sigma0_002  = cur_dir + "../data/ulla-ent-rna-esst128-pid60-sigma0.002-logo.mat",
-
-def calculate_pid(aas1, aas2)
-  cols  = aas1.zip(aas2)
-  gap   = '-'
-  align = 0.0 # no. of aligned columns
-  ident = 0.0 # no. of identical columns
-  intgp = 0.0 # no. of internal gaps
-  aafnd = false
-
-  cols.each do |col|
-    if (col[0] != gap) && (col[1] != gap)
-      align += 1
-      aafnd = true
-      ident += 1 if col[0] == col[1]
-    elsif (((col[0] == gap) && (col[1] != gap)) ||
-           ((col[0] != gap) && (col[1] == gap)))
-      intgp += 1 if aafnd
-    elsif (col[0] == gap) && (col[1] == gap)
-      next
-    else
-      warn "Unknown combination!"
-      exit 1
-    end
-  end
-  Float(ident) / (align + intgp)
-end
-
-def match_positions(aas1, aas2)
-  len1 = aas1.length
-  len2 = aas2.length
-  gap1 = 0
-  gap2 = 0
-  idx1 = 0
-  idx2 = 0
-  aafnd1 = false
-  aafns2 = false
-  cols = []
-
-  for i in (0...len1)
-    if (aas1[i] == '-') && (aas2[i] == '-')
-      gap1 += 1
-      gap2 += 1
-    elsif (aas1[i] == '-') && (aas2[i] != '-')
-      gap1 += 1
-    elsif (aas1[i] != '-') && (aas2[i] == '-')
-      gap2 += 1
-    elsif (aas1[i] != '-') && (aas2[i] != '-')
-      cols << [i-gap1, i-gap2]
-    else
-      warn "Unknown combination!"
-      exit 1
-    end
-  end
-  cols
-end
-
 namespace :bench do
+
+  include Gigue
+  require 'fork_manager'
+
+  cur_dir = Pathname.new(__FILE__).dirname
+
+  # logger settings
+  $logger.level   = Logger::INFO
+
+  # load SCOP description file
+  sunid_to_sccs = {}
+  sid_to_sccs   = {}
+  sid_to_sunid  = {}
+  scop_des_file = cur_dir + "../data/dir.des.scop.txt_1.75"
+
+  IO.foreach(scop_des_file) do |line|
+    line.chomp!
+    if line =~ /^#/
+      next
+    elsif (cols = line.split("\t")).size == 5
+      sunid_to_sccs[cols[0]] = cols[2]
+      sid_to_sccs[cols[3]] = cols[2] if cols[1] == "px"
+      sid_to_sunid[cols[3]] = cols[0] if cols[1] == "px"
+    else
+      warn "? #{line}"
+    end
+  end
+
+  dna_tems = Pathname::glob(cur_dir + "../data/bipa/scop/rep/dna/*/dnamodsalign.tem")
+  rna_tems = Pathname::glob(cur_dir + "../data/bipa/scop/rep/rna/*/rnamodsalign.tem")
+
+  dna_esst64_sigma5       = cur_dir + "../data/ulla-ent-dna-esst64-pid60-sigma5-logo.mat"
+  dna_esst128_sigma5      = cur_dir + "../data/ulla-ent-dna-esst128-pid60-sigma5-logo.mat"
+  dna_esst64_sigma1       = cur_dir + "../data/ulla-ent-dna-esst64-pid60-sigma1-logo.mat"
+  dna_esst128_sigma1      = cur_dir + "../data/ulla-ent-dna-esst128-pid60-sigma1-logo.mat"
+  dna_esst64_sigma0_1     = cur_dir + "../data/ulla-ent-dna-esst64-pid60-sigma0.1-logo.mat",
+  dna_esst128_sigma0_1    = cur_dir + "../data/ulla-ent-dna-esst128-pid60-sigma0.1-logo.mat",
+  dna_esst64_sigma0_01    = cur_dir + "../data/ulla-ent-dna-esst64-pid60-sigma0.01-logo.mat",
+  dna_esst128_sigma0_01   = cur_dir + "../data/ulla-ent-dna-esst128-pid60-sigma0.01-logo.mat",
+  dna_esst64_sigma0_001   = cur_dir + "../data/ulla-ent-dna-esst64-pid60-sigma0.001-logo.mat",
+  dna_esst128_sigma0_001  = cur_dir + "../data/ulla-ent-dna-esst128-pid60-sigma0.001-logo.mat",
+  dna_esst64_sigma0_002   = cur_dir + "../data/ulla-ent-dna-esst64-pid60-sigma0.002-logo.mat",
+  dna_esst128_sigma0_002  = cur_dir + "../data/ulla-ent-dna-esst128-pid60-sigma0.002-logo.mat",
+
+  rna_esst64_sigma5       = cur_dir + "../data/ulla-ent-rna-esst64-pid60-sigma5-logo.mat"
+  rna_esst128_sigma5      = cur_dir + "../data/ulla-ent-rna-esst128-pid60-sigma5-logo.mat"
+  rna_esst64_sigma1       = cur_dir + "../data/ulla-ent-rna-esst64-pid60-sigma1-logo.mat"
+  rna_esst128_sigma1      = cur_dir + "../data/ulla-ent-rna-esst128-pid60-sigma1-logo.mat"
+  rna_esst64_sigma0_1     = cur_dir + "../data/ulla-ent-rna-esst64-pid60-sigma0.1-logo.mat",
+  rna_esst128_sigma0_1    = cur_dir + "../data/ulla-ent-rna-esst128-pid60-sigma0.1-logo.mat",
+  rna_esst64_sigma0_01    = cur_dir + "../data/ulla-ent-rna-esst64-pid60-sigma0.01-logo.mat",
+  rna_esst128_sigma0_01   = cur_dir + "../data/ulla-ent-rna-esst128-pid60-sigma0.01-logo.mat",
+  rna_esst64_sigma0_001   = cur_dir + "../data/ulla-ent-rna-esst64-pid60-sigma0.001-logo.mat",
+  rna_esst128_sigma0_001  = cur_dir + "../data/ulla-ent-rna-esst128-pid60-sigma0.001-logo.mat",
+  rna_esst64_sigma0_002   = cur_dir + "../data/ulla-ent-rna-esst64-pid60-sigma0.002-logo.mat",
+  rna_esst128_sigma0_002  = cur_dir + "../data/ulla-ent-rna-esst128-pid60-sigma0.002-logo.mat",
+
+  def calculate_pid(aas1, aas2)
+    cols  = aas1.zip(aas2)
+    gap   = '-'
+    align = 0.0 # no. of aligned columns
+    ident = 0.0 # no. of identical columns
+    intgp = 0.0 # no. of internal gaps
+    aafnd = false
+
+    cols.each do |col|
+      if (col[0] != gap) && (col[1] != gap)
+        align += 1
+        aafnd = true
+        ident += 1 if col[0] == col[1]
+      elsif (((col[0] == gap) && (col[1] != gap)) ||
+             ((col[0] != gap) && (col[1] == gap)))
+        intgp += 1 if aafnd
+      elsif (col[0] == gap) && (col[1] == gap)
+        next
+      else
+        warn "Unknown combination!"
+        exit 1
+      end
+    end
+    Float(ident) / (align + intgp)
+  end
+
+  def match_positions(aas1, aas2)
+    len1 = aas1.length
+    len2 = aas2.length
+    gap1 = 0
+    gap2 = 0
+    idx1 = 0
+    idx2 = 0
+    aafnd1 = false
+    aafns2 = false
+    cols = []
+
+    for i in (0...len1)
+      if (aas1[i] == '-') && (aas2[i] == '-')
+        gap1 += 1
+        gap2 += 1
+      elsif (aas1[i] == '-') && (aas2[i] != '-')
+        gap1 += 1
+      elsif (aas1[i] != '-') && (aas2[i] == '-')
+        gap2 += 1
+      elsif (aas1[i] != '-') && (aas2[i] != '-')
+        cols << [i-gap1, i-gap2]
+      else
+        warn "Unknown combination!"
+        exit 1
+      end
+    end
+    cols
+  end
 
   desc "Accuracy of alignments"
   task :align2 do
@@ -312,14 +312,14 @@ namespace :bench do
     end
 
     #dna_tems.each do |dna_tem|
-      #Bio::FlatFile.auto(dna_tem) do |pir_file|
-        #pir_file.each do |entry|
-          #if (entry.definition =~ /^sequence/)
-            #args = [entry.aaseq.gsub('-',''), entry.entry_id, "sequence;#{entry.definition}"]
-            #seqs << Sequence.new(*args)
-          #end
-        #end
-      #end
+    #Bio::FlatFile.auto(dna_tem) do |pir_file|
+    #pir_file.each do |entry|
+    #if (entry.definition =~ /^sequence/)
+    #args = [entry.aaseq.gsub('-',''), entry.entry_id, "sequence;#{entry.definition}"]
+    #seqs << Sequence.new(*args)
+    #end
+    #end
+    #end
     #end
 
     log_fmt = "%8d %5d %2s %6s %10s %14s %8d %8s %5d %2s %6s %10s %14s %7d %7d %6.4 %10s"
@@ -504,9 +504,9 @@ namespace :bench do
     end
   end
 
+
   desc "Remote homology recognition performance"
   task :recog_dna_affine do
-
     seqs    = []
     scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
 
@@ -534,9 +534,9 @@ namespace :bench do
         $logger.info  "Searching against DNA-bindnig SCOP family, #{sccs} (#{i+1}/#{dna_tems.size})"
 
         fm.fork do
-          [ dna_esst64_sigma0_002, dna_esst128_sigma0_002 ].each do |esst|
+          [ rna_esst64_sigma0_002, rna_esst128_sigma0_002 ].each do |esst|
             env   = esst.to_s.match(/(esst\d+)/)[1]
-            stp   = StructuralProfile::create_from_joy_tem_and_essts(dna_tem, esst)
+            stp   = StructuralProfile::create_from_joy_tem_and_essts(rna_tem, esst)
             hits  = []
             seqs.each do |seq|
               stp_sccs  = sccs.split('.')
