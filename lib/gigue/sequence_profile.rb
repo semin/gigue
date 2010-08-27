@@ -75,6 +75,10 @@ module Gigue
       self.class.new(@positions.shuffle, @opts)
     end
 
+    def reverse
+      self.class.new(@positions.reverse, @opts)
+    end
+
     def purge
       pss = []
       @positions.each do |ps|

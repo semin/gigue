@@ -293,315 +293,365 @@ namespace :bench do
     end
   end
 
-  desc "Remote homology recognition performance"
-  task :recog_dna do
 
-    seqs = []
+  namespace :recog do
+    namespace :linear do
 
-    scop20 = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-20-1.75.fa"
-    Bio::FlatFile.open(Bio::FastaFormat, scop20) do |ff|
-      ff.each do |entry|
-        if sid_to_sccs[entry.entry_id.gsub(/^g/, 'd').gsub(/^e/, 'd')].match(/^[a|b|c|d|e|f|g]/)
-          seqs << Sequence.new(entry.aaseq.gsub('X',''),
-                               entry.entry_id.gsub(/^g/, 'd').gsub(/^e/, 'd'),
-                               "sequence;#{entry.definition}")
-        else
-          $logger.warn "Skip #{entry.definition}, not a true SCOP class"
+      desc "Remote homology recognition performance"
+      task :dna do
+
+        seqs    = []
+        scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
+
+        Bio::FlatFile.open(Bio::FastaFormat, scop40) do |ff|
+          ff.each do |entry|
+            if sid_to_sccs[entry.entry_id.gsub(/^[g|e]/, 'd')].match(/^[a|b|c|d|e|f|g]/)
+              seqs << Sequence.new(entry.aaseq, entry.entry_id.gsub(/^[g|e]/, 'd'), "sequence;#{entry.definition}")
+            else
+              $logger.warn "Skip #{entry.definition}, not a true SCOP class"
+            end
+          end
+        end
+
+        fm = ForkManager.new(8)
+        fm.manage do
+          dna_tems.each_with_index do |dna_tem, i|
+            sunid = dna_tem.to_s.match(/(\d+)/)[1]
+            sccs  = sunid_to_sccs[sunid]
+            unless sccs.match(/^[a|b|c|d|e|f|g]/)
+              $logger.warn "Skip #{sccs}, it's not a true SCOP class"
+              next
+            end
+            $logger.info  "Searching against DNA-bindnig SCOP family, #{sccs} (#{i+1}/#{dna_tems.size})"
+
+            fm.fork do
+              [ dna_esst64_sigma0_002, dna_esst128_sigma0_002 ].each do |esst|
+                env   = esst.to_s.match(/(esst\d+)/)[1]
+                stp   = StructuralProfile::create_from_joy_tem_and_essts(dna_tem, esst)
+                hits  = []
+                seqs.each do |seq|
+                  stp_sccs  = sccs.split('.')
+                  stp_class = stp_sccs[0]
+                  stp_fold  = stp_sccs[0..1].join('.')
+                  stp_sfam  = stp_sccs[0..2].join('.')
+                  stp_fam   = stp_sccs[0..3].join('.')
+                  seq_sccs  = sid_to_sccs[seq.code].split('.')
+                  seq_class = seq_sccs[0]
+                  seq_fold  = seq_sccs[0..1].join('.')
+                  seq_sfam  = seq_sccs[0..2].join('.')
+                  seq_fam   = seq_sccs[0..3].join('.')
+
+                  if stp_class != seq_class
+                    $logger.warn "Skip comparison between #{stp_sccs} and #{seq_sccs}"
+                    next
+                  end
+
+                  psa = ProfileSequenceAligner.new(stp, seq)
+                  begin
+                    gal = psa.global_alignment_linear_gap_cpp
+                  rescue
+                    puts "Problematic prf:"
+                    puts ">#{dna_tem}"
+                    puts "Problematic seq:"
+                    puts ">#{seq.code}"
+                    puts "#{seq.data}"
+                  end
+
+                  if gal.raw_score < gal.reverse_score
+                    $logger.debug "Skip #{sccs} <=> #{seq.code}, reverse raw score is greater than raw score."
+                    next
+                  end
+
+                  result = [ sunid, stp.length, stp_class, stp_fold, stp_sfam, stp_fam,
+                    sid_to_sunid[seq.code], seq.code, seq.length, seq_class, seq_fold, seq_sfam, seq_fam,
+                    gal.raw_score, gal.reverse_score, gal.z_score, psa.algorithm.to_s
+                  ]
+
+                  log_fmt = "%8d %5d %2s %5s %9s %12s %8d %-10s %5d %2s %5s %9s %12s %7d %7d %10.7f %10s"
+                  $logger.info log_fmt % result
+                  hits << result
+                end
+
+                sorted_hits = hits.sort_by { |h| h[-2] }.reverse
+                res_file    = cur_dir + "../tmp/recog/dna/multi_str-single_seq-linear-#{sccs}-#{env}.csv"
+                res_file.open("w") do |file|
+                  sorted_hits.each do |sorted_hit|
+                    file.puts sorted_hit.join(", ")
+                  end
+                end
+              end
+            end
+          end
         end
       end
-    end
 
-    #dna_tems.each do |dna_tem|
-    #Bio::FlatFile.auto(dna_tem) do |pir_file|
-    #pir_file.each do |entry|
-    #if (entry.definition =~ /^sequence/)
-    #args = [entry.aaseq.gsub('-',''), entry.entry_id, "sequence;#{entry.definition}"]
-    #seqs << Sequence.new(*args)
-    #end
-    #end
-    #end
-    #end
 
-    log_fmt = "%8d %5d %2s %6s %10s %14s %8d %8s %5d %2s %6s %10s %14s %7d %7d %6.4 %10s"
+      desc "Remote homology recognition performance"
+      task :rna do
 
-    fm = ForkManager.new(8)
-    fm.manage do
-      dna_tems.each_with_index do |dna_tem, i|
-        sunid = dna_tem.to_s.match(/(\d+)/)[1]
-        sccs  = sunid_to_sccs[sunid]
-        unless sccs.match(/^[a|b|c|d|e|f|g]/)
-          $logger.warn "Skip #{sccs}, it's not a true SCOP class"
-          next
-        end
-        $logger.info  "Searching against DNA-bindnig SCOP family, #{sccs} (#{i+1}/#{dna_tems.size})"
+        seqs    = []
+        scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
 
-        fm.fork do
-          [ dna_esst64_sigma0_002, dna_esst128_sigma0_002 ].each do |esst|
-            env   = esst.to_s.match(/(esst\d+)/)[1]
-            stp   = StructuralProfile::create_from_joy_tem_and_essts(dna_tem, esst)
-            hits  = []
-            seqs.each do |seq|
-              stp_sccs  = sccs.split('.')
-              stp_class = stp_sccs[0]
-              stp_fold  = stp_sccs[0..1].join('.')
-              stp_sfam  = stp_sccs[0..2].join('.')
-              stp_fam   = stp_sccs[0..3].join('.')
-              seq_sccs  = sid_to_sccs[seq.code].split('.')
-              seq_class = seq_sccs[0]
-              seq_fold  = seq_sccs[0..1].join('.')
-              seq_sfam  = seq_sccs[0..2].join('.')
-              seq_fam   = seq_sccs[0..3].join('.')
-
-              if stp_class != seq_class
-                #$logger.warn "Skip comparison between #{stp_sccs} and #{seq_sccs}"
-                next
-              end
-
-              psa = ProfileSequenceAligner.new(stp, seq)
-              begin
-                gal = psa.global_alignment_linear_gap_cpp
-              rescue
-                puts "Problematic prf:"
-                puts ">#{dna_tem}"
-                puts "Problematic seq:"
-                puts ">#{seq.code}"
-                puts "#{seq.data}"
-              end
-              result    = [
-                sunid,
-                stp.length,
-                stp_class,
-                stp_fold,
-                stp_sfam,
-                stp_fam,
-                sid_to_sunid[seq.code],
-                seq.code,
-                seq.length,
-                seq_class,
-                seq_fold,
-                seq_sfam,
-                seq_fam,
-                gal.raw_score,
-                gal.reverse_score,
-                gal.z_score,
-                psa.algorithm.to_s
-              ]
-              $logger.info log_fmt % result
-              hits << result
+        Bio::FlatFile.open(Bio::FastaFormat, scop40) do |ff|
+          ff.each do |entry|
+            if sid_to_sccs[entry.entry_id.gsub(/^[g|e]/, 'd')].match(/^[a|b|c|d|e|f|g]/)
+              seqs << Sequence.new(entry.aaseq, entry.entry_id.gsub(/^[g|e]/, 'd'), "sequence;#{entry.definition}")
+            else
+              $logger.warn "Skip #{entry.definition}, not a true SCOP class"
             end
+          end
+        end
 
-            sorted_hits = hits.sort_by { |h| h[-2] }.reverse
-            res_file    = cur_dir + "../tmp/recog/dna/#{sccs}-multi_str-single_seq-#{env}.csv"
-            res_file.open("w") do |file|
-              sorted_hits.each do |sorted_hit|
-                file.puts sorted_hit.join(", ")
+        fm = ForkManager.new(8)
+        fm.manage do
+          rna_tems.each_with_index do |rna_tem, i|
+            sunid = rna_tem.to_s.match(/(\d+)/)[1]
+            sccs  = sunid_to_sccs[sunid]
+            unless sccs.match(/^[a|b|c|d|e|f|g]/)
+              $logger.warn "Skip #{sccs}, it's not a true SCOP class"
+              next
+            end
+            $logger.info  "Searching against RNA-bindnig SCOP family, #{sccs} (#{i+1}/#{rna_tems.size})"
+
+            fm.fork do
+              [ rna_esst64_sigma0_002, rna_esst128_sigma0_002 ].each do |esst|
+                env   = esst.to_s.match(/(esst\d+)/)[1]
+                stp   = StructuralProfile::create_from_joy_tem_and_essts(rna_tem, esst)
+                hits  = []
+                seqs.each do |seq|
+                  stp_sccs  = sccs.split('.')
+                  stp_class = stp_sccs[0]
+                  stp_fold  = stp_sccs[0..1].join('.')
+                  stp_sfam  = stp_sccs[0..2].join('.')
+                  stp_fam   = stp_sccs[0..3].join('.')
+                  seq_sccs  = sid_to_sccs[seq.code].split('.')
+                  seq_class = seq_sccs[0]
+                  seq_fold  = seq_sccs[0..1].join('.')
+                  seq_sfam  = seq_sccs[0..2].join('.')
+                  seq_fam   = seq_sccs[0..3].join('.')
+
+                  if stp_class != seq_class
+                    $logger.warn "Skip comparison between #{stp_sccs} and #{seq_sccs}"
+                    next
+                  end
+
+                  psa = ProfileSequenceAligner.new(stp, seq)
+                  begin
+                    gal = psa.global_alignment_linear_gap_cpp
+                  rescue
+                    puts "Problematic prf:"
+                    puts ">#{rna_tem}"
+                    puts "Problematic seq:"
+                    puts ">#{seq.code}"
+                    puts "#{seq.data}"
+                  end
+
+                  if gal.raw_score < gal.reverse_score
+                    $logger.debug "Skip #{sccs} <=> #{seq.code}, reverse raw score is greater than raw score."
+                    next
+                  end
+
+                  result = [ sunid, stp.length, stp_class, stp_fold, stp_sfam, stp_fam,
+                    sid_to_sunid[seq.code], seq.code, seq.length, seq_class, seq_fold, seq_sfam, seq_fam,
+                    gal.raw_score, gal.reverse_score, gal.z_score, psa.algorithm.to_s
+                  ]
+
+                  log_fmt = "%8d %5d %2s %5s %9s %12s %8d %-10s %5d %2s %5s %9s %12s %7d %7d %10.7f %10s"
+                  $logger.info log_fmt % result
+                  hits << result
+                end
+                sorted_hits = hits.sort_by { |h| h[-2] }.reverse
+                res_file    = cur_dir + "../tmp/recog/rna/multi_str-single_seq-linear-#{sccs}-#{env}.csv"
+                res_file.open("w") do |file|
+                  sorted_hits.each do |sorted_hit|
+                    file.puts sorted_hit.join(", ")
+                  end
+                end
               end
             end
           end
         end
       end
     end
-  end
 
+    namespace :affine do
 
-  desc "Remote homology recognition performance"
-  task :recog_rna do
+      desc "Remote homology recognition performance"
+      task :dna do
+        seqs    = []
+        scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
 
-    seqs    = []
-    scop20  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-20-1.75.fa"
-
-    Bio::FlatFile.open(Bio::FastaFormat, scop20) do |ff|
-      ff.each do |entry|
-        if sid_to_sccs[entry.entry_id.gsub(/^g/, 'd').gsub(/^e/, 'd')].match(/^[a|b|c|d|e|f|g]/)
-          seqs << Sequence.new(entry.aaseq.gsub('X',''),
-                               entry.entry_id.gsub(/^g/, 'd').gsub(/^e/, 'd'),
-                               "sequence;#{entry.definition}")
-        else
-          $logger.warn "Skip #{entry.definition}, not a true SCOP class"
-        end
-      end
-    end
-
-    fm = ForkManager.new(8)
-    fm.manage do
-      rna_tems.each_with_index do |rna_tem, i|
-        sunid = rna_tem.to_s.match(/(\d+)/)[1]
-        sccs  = sunid_to_sccs[sunid]
-        unless sccs.match(/^[a|b|c|d|e|f|g]/)
-          $logger.warn "Skip #{sccs}, it's not a true SCOP class"
-          next
-        end
-        $logger.info  "Searching against RNA-bindnig SCOP family, #{sccs} (#{i+1}/#{rna_tems.size})"
-
-        fm.fork do
-          [ rna_esst64_sigma0_002, rna_esst128_sigma0_002 ].each do |esst|
-            env   = esst.to_s.match(/(esst\d+)/)[1]
-            stp   = StructuralProfile::create_from_joy_tem_and_essts(rna_tem, esst)
-            hits  = []
-            seqs.each do |seq|
-              stp_sccs  = sccs.split('.')
-              stp_class = stp_sccs[0]
-              stp_fold  = stp_sccs[0..1].join('.')
-              stp_sfam  = stp_sccs[0..2].join('.')
-              stp_fam   = stp_sccs[0..3].join('.')
-              seq_sccs  = sid_to_sccs[seq.code].split('.')
-              seq_class = seq_sccs[0]
-              seq_fold  = seq_sccs[0..1].join('.')
-              seq_sfam  = seq_sccs[0..2].join('.')
-              seq_fam   = seq_sccs[0..3].join('.')
-
-              if stp_class != seq_class
-                #$logger.warn "Skip comparison between #{stp_sccs} and #{seq_sccs}"
-                next
-              end
-
-              psa = ProfileSequenceAligner.new(stp, seq)
-              begin
-                gal = psa.global_alignment_linear_gap_cpp
-              rescue
-                puts "Problematic prf:"
-                puts ">#{rna_tem}"
-                puts "Problematic seq:"
-                puts ">#{seq.code}"
-                puts "#{seq.data}"
-              end
-              result    = [
-                sunid,
-                stp.length,
-                stp_class,
-                stp_fold,
-                stp_sfam,
-                stp_fam,
-                sid_to_sunid[seq.code],
-                seq.code,
-                seq.length,
-                seq_class,
-                seq_fold,
-                seq_sfam,
-                seq_fam,
-                gal.raw_score,
-                gal.reverse_score,
-                gal.z_score,
-                psa.algorithm.to_s
-              ]
-              #    46562    73  a    a.2      a.2.2        a.2.2.1    15737  d1coja1    89  a    a.2     a.2.11       a.2.11.1   -2588   -2854 1.9448     global
-
-              log_fmt = "%8d %5d %2s %5s %9s %12s %8d %-10s %5d %2s %5s %9s %12s %7d %7d %10.7f %10s"
-              $logger.info log_fmt % result
-              hits << result
+        Bio::FlatFile.open(Bio::FastaFormat, scop40) do |ff|
+          ff.each do |entry|
+            if sid_to_sccs[entry.entry_id.gsub(/^[g|e]/,'d')].match(/^[a|b|c|d|e|f|g]/)
+              seqs << Sequence.new(entry.aaseq, entry.entry_id.gsub(/^[g|e]/,'d'), "sequence;#{entry.definition}")
+            else
+              $logger.warn "Skip #{entry.definition}, not a true SCOP class"
             end
+          end
+        end
 
-            sorted_hits = hits.sort_by { |h| h[-2] }.reverse
-            res_file    = cur_dir + "../tmp/recog/rna/#{sccs}-multi_str-single_seq-#{env}.csv"
-            res_file.open("w") do |file|
-              sorted_hits.each do |sorted_hit|
-                file.puts sorted_hit.join(", ")
+        fm = ForkManager.new(8)
+        fm.manage do
+          dna_tems.each_with_index do |dna_tem, i|
+            sunid = dna_tem.to_s.match(/(\d+)/)[1]
+            sccs  = sunid_to_sccs[sunid]
+            unless sccs.match(/^[a|b|c|d|e|f|g]/)
+              $logger.warn "Skip #{sccs}, it's not a true SCOP class"
+              next
+            end
+            $logger.info  "Searching against DNA-bindnig SCOP family, #{sccs} (#{i+1}/#{dna_tems.size})"
+
+            fm.fork do
+              [ dna_esst64_sigma0_002, dna_esst128_sigma0_002 ].each do |esst|
+                env   = esst.to_s.match(/(esst\d+)/)[1]
+                stp   = StructuralProfile::create_from_joy_tem_and_essts(dna_tem, esst)
+                hits  = []
+                seqs.each do |seq|
+                  stp_sccs  = sccs.split('.')
+                  stp_class = stp_sccs[0]
+                  stp_fold  = stp_sccs[0..1].join('.')
+                  stp_sfam  = stp_sccs[0..2].join('.')
+                  stp_fam   = stp_sccs[0..3].join('.')
+                  seq_sccs  = sid_to_sccs[seq.code].split('.')
+                  seq_class = seq_sccs[0]
+                  seq_fold  = seq_sccs[0..1].join('.')
+                  seq_sfam  = seq_sccs[0..2].join('.')
+                  seq_fam   = seq_sccs[0..3].join('.')
+
+                  if stp_class != seq_class
+                    $logger.warn "Skip comparison between #{stp_sccs} and #{seq_sccs}"
+                    next
+                  end
+
+                  psa = ProfileSequenceAligner.new(stp, seq)
+                  begin
+                    gal = psa.global_alignment_affine_gap_cpp
+                  rescue
+                    puts "Problematic prf:"
+                    puts ">#{dna_tem}"
+                    puts "Problematic seq:"
+                    puts ">#{seq.code}"
+                    puts "#{seq.data}"
+                  end
+
+                  if gal.raw_score < gal.reverse_score
+                    $logger.debug "Skip #{sccs} <=> #{seq.code}, reverse raw score is greater than raw score."
+                    next
+                  end
+
+                  result = [ sunid, stp.length, stp_class, stp_fold, stp_sfam, stp_fam,
+                    sid_to_sunid[seq.code], seq.code, seq.length, seq_class, seq_fold, seq_sfam, seq_fam,
+                    gal.raw_score, gal.reverse_score, gal.z_score, psa.algorithm.to_s
+                  ]
+
+                  log_fmt = "%8d %5d %2s %5s %9s %12s %8d %-10s %5d %2s %5s %9s %12s %7d %7d %10.7f %10s"
+                  $logger.info log_fmt % result
+                  hits << result
+                end
+
+                sorted_hits = hits.sort_by { |h| h[-2] }.reverse
+                res_file    = cur_dir + "../tmp/recog/dna/multi_str-single_seq-affine-#{sccs}-#{env}.csv"
+                res_file.open("w") do |file|
+                  sorted_hits.each do |sorted_hit|
+                    file.puts sorted_hit.join(", ")
+                  end
+                end
               end
             end
           end
         end
       end
-    end
-  end
 
 
-  desc "Remote homology recognition performance"
-  task :recog_dna_affine do
-    seqs    = []
-    scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
+      desc "Remote homology recognition performance"
+      task :rna do
 
-    Bio::FlatFile.open(Bio::FastaFormat, scop40) do |ff|
-      ff.each do |entry|
-        if sid_to_sccs[entry.entry_id.gsub(/^g/, 'd').gsub(/^e/, 'd')].match(/^[a|b|c|d|e|f|g]/)
-          seqs << Sequence.new(entry.aaseq.gsub('X','').gsub('Z','Q'),
-                               entry.entry_id.gsub(/^g/, 'd').gsub(/^e/, 'd'),
-                               "sequence;#{entry.definition}")
-        else
-          $logger.warn "Skip #{entry.definition}, not a true SCOP class"
-        end
-      end
-    end
+        seqs    = []
+        scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
 
-    fm = ForkManager.new(8)
-    fm.manage do
-      dna_tems.each_with_index do |dna_tem, i|
-        sunid = dna_tem.to_s.match(/(\d+)/)[1]
-        sccs  = sunid_to_sccs[sunid]
-        unless sccs.match(/^[a|b|c|d|e|f|g]/)
-          $logger.warn "Skip #{sccs}, it's not a true SCOP class"
-          next
-        end
-        $logger.info  "Searching against DNA-bindnig SCOP family, #{sccs} (#{i+1}/#{dna_tems.size})"
-
-        fm.fork do
-          [ rna_esst64_sigma0_002, rna_esst128_sigma0_002 ].each do |esst|
-            env   = esst.to_s.match(/(esst\d+)/)[1]
-            stp   = StructuralProfile::create_from_joy_tem_and_essts(rna_tem, esst)
-            hits  = []
-            seqs.each do |seq|
-              stp_sccs  = sccs.split('.')
-              stp_class = stp_sccs[0]
-              stp_fold  = stp_sccs[0..1].join('.')
-              stp_sfam  = stp_sccs[0..2].join('.')
-              stp_fam   = stp_sccs[0..3].join('.')
-              seq_sccs  = sid_to_sccs[seq.code].split('.')
-              seq_class = seq_sccs[0]
-              seq_fold  = seq_sccs[0..1].join('.')
-              seq_sfam  = seq_sccs[0..2].join('.')
-              seq_fam   = seq_sccs[0..3].join('.')
-
-              if stp_class != seq_class
-                $logger.warn "Skip comparison between #{stp_sccs} and #{seq_sccs}"
-                next
-              end
-
-              psa = ProfileSequenceAligner.new(stp, seq)
-              begin
-                gal = psa.global_alignment_affine_gap_cpp
-              rescue
-                puts "Problematic prf:"
-                puts ">#{dna_tem}"
-                puts "Problematic seq:"
-                puts ">#{seq.code}"
-                puts "#{seq.data}"
-              end
-              result    = [
-                sunid,
-                stp.length,
-                stp_class,
-                stp_fold,
-                stp_sfam,
-                stp_fam,
-                sid_to_sunid[seq.code],
-                seq.code,
-                seq.length,
-                seq_class,
-                seq_fold,
-                seq_sfam,
-                seq_fam,
-                gal.raw_score,
-                gal.reverse_score,
-                gal.z_score,
-                psa.algorithm.to_s
-              ]
-              #    46562    73  a    a.2      a.2.2        a.2.2.1    15737  d1coja1    89  a    a.2     a.2.11       a.2.11.1   -2588   -2854 1.9448     global
-
-              log_fmt = "%8d %5d %2s %5s %9s %12s %8d %-10s %5d %2s %5s %9s %12s %7d %7d %10.7f %10s"
-              $logger.info log_fmt % result
-              hits << result
+        Bio::FlatFile.open(Bio::FastaFormat, scop40) do |ff|
+          ff.each do |entry|
+            if sid_to_sccs[entry.entry_id.gsub(/^[g|e]/,'d')].match(/^[a|b|c|d|e|f|g]/)
+              seqs << Sequence.new(entry.aaseq, entry.entry_id.gsub(/^[g|e]/,'d'), "sequence;#{entry.definition}")
+            else
+              $logger.warn "Skip #{entry.definition}, not a true SCOP class"
             end
+          end
+        end
 
-            sorted_hits = hits.sort_by { |h| h[-2] }.reverse
-            res_file    = cur_dir + "../tmp/recog/dna/#{sccs}-multi_str-single_seq-#{env}-affine.csv"
-            res_file.open("w") do |file|
-              sorted_hits.each do |sorted_hit|
-                file.puts sorted_hit.join(", ")
+        fm = ForkManager.new(8)
+        fm.manage do
+          rna_tems.each_with_index do |rna_tem, i|
+            sunid = rna_tem.to_s.match(/(\d+)/)[1]
+            sccs  = sunid_to_sccs[sunid]
+            unless sccs.match(/^[a|b|c|d|e|f|g]/)
+              $logger.warn "Skip #{sccs}, it's not a true SCOP class"
+              next
+            end
+            $logger.info  "Searching against RNA-bindnig SCOP family, #{sccs} (#{i+1}/#{rna_tems.size})"
+
+            fm.fork do
+              [ rna_esst64_sigma0_002, rna_esst128_sigma0_002 ].each do |esst|
+                env   = esst.to_s.match(/(esst\d+)/)[1]
+                stp   = StructuralProfile::create_from_joy_tem_and_essts(rna_tem, esst)
+                hits  = []
+                seqs.each do |seq|
+                  stp_sccs  = sccs.split('.')
+                  stp_class = stp_sccs[0]
+                  stp_fold  = stp_sccs[0..1].join('.')
+                  stp_sfam  = stp_sccs[0..2].join('.')
+                  stp_fam   = stp_sccs[0..3].join('.')
+                  seq_sccs  = sid_to_sccs[seq.code].split('.')
+                  seq_class = seq_sccs[0]
+                  seq_fold  = seq_sccs[0..1].join('.')
+                  seq_sfam  = seq_sccs[0..2].join('.')
+                  seq_fam   = seq_sccs[0..3].join('.')
+
+                  if stp_class != seq_class
+                    $logger.warn "Skip comparison between #{stp_sccs} and #{seq_sccs}"
+                    next
+                  end
+
+                  psa = ProfileSequenceAligner.new(stp, seq)
+                  begin
+                    gal = psa.global_alignment_affine_gap_cpp
+                  rescue
+                    puts "Problematic prf:"
+                    puts ">#{rna_tem}"
+                    puts "Problematic seq:"
+                    puts ">#{seq.code}"
+                    puts "#{seq.data}"
+                  end
+
+                  if gal.raw_score < gal.reverse_score
+                    $logger.debug "Skip #{sccs} <=> #{seq.code}, reverse raw score is greater than raw score."
+                    next
+                  end
+
+                  result = [
+                    sunid, stp.length, stp_class, stp_fold, stp_sfam, stp_fam,
+                    sid_to_sunid[seq.code], seq.code, seq.length, seq_class, seq_fold, seq_sfam, seq_fam,
+                    gal.raw_score, gal.reverse_score, gal.z_score, psa.algorithm.to_s
+                  ]
+
+                  log_fmt = "%8d %5d %2s %5s %9s %12s %8d %-10s %5d %2s %5s %9s %12s %7d %7d %10.7f %10s"
+                  $logger.info log_fmt % result
+                  hits << result
+                end
+                sorted_hits = hits.sort_by { |h| h[-2] }.reverse
+                res_file    = cur_dir + "../tmp/recog/rna/multi_str-single_seq-affine-#{accs}-#{env}.csv"
+                res_file.open("w") do |file|
+                  sorted_hits.each do |sorted_hit|
+                    file.puts sorted_hit.join(", ")
+                  end
+                end
               end
             end
           end
         end
       end
+
     end
   end
-
 end

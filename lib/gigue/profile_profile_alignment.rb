@@ -1,7 +1,8 @@
 module Gigue
   class ProfileProfileAlignment
 
-    attr_reader :structural_profile, :sequence_profile, :raw_score,
+    attr_reader :structural_profile, :sequence_profile,
+                :raw_score, :reverse_raw_score,
                 :aligned_structural_profile_positions,
                 :aligned_sequence_profile_positions
 
@@ -180,6 +181,10 @@ module Gigue
       @z_score ||= calculate_z_score
     end
 
+    def reverse_raw_score
+      @reverse_raw_score ||= calculate_reverse_raw_score
+    end
+
     def to_flatfile(options={})
       opts = {
         :os     => STDOUT,
@@ -228,6 +233,15 @@ module Gigue
       traceback_linear_gap(max_m, max_n)
     end
 
+    def calculate_reverse_raw_score
+      aligner = ProfileSequenceAligner.new(@structural_profile, @sequence_profile.reverse)
+      begin
+        aligner.local_alignment_linear_gap_cpp.raw_score
+      rescue
+        aligner.local_alignment_linear_gap_rb.raw_score
+      end
+    end
+
     def calculate_z_score(iter=100)
       scores = NArray.int(iter)
       (0...iter).each do |i|
@@ -268,6 +282,15 @@ module Gigue
       traceback_affine_gap(max_m, max_n)
     end
 
+    def calculate_reverse_raw_score
+      aligner = ProfileProfileAligner.new(@structural_profile, @sequence_profile.reverse)
+      begin
+        aligner.local_alignment_affine_gap_cpp.raw_score
+      rescue
+        aligner.local_alignment_affine_gap_rb.raw_score
+      end
+    end
+
     def calculate_z_score(iter=100)
       scores = NArray.int(iter)
       (0...iter).each do |i|
@@ -289,6 +312,15 @@ module Gigue
       @point      = point
       @raw_score  = @score[-1][-1]
       traceback_linear_gap
+    end
+
+    def calculate_reverse_raw_score
+      aligner = ProfileProfileAligner.new(@structural_profile, @sequence_profile.reverse)
+      begin
+        aligner.global_alignment_linear_gap_cpp.raw_score
+      rescue
+        aligner.global_alignment_linear_gap_rb.raw_score
+      end
     end
 
     def calculate_z_score(iter=100)
@@ -328,6 +360,15 @@ module Gigue
         @ins_score[-1][-1]
       ].max
       traceback_affine_gap
+    end
+
+    def calculate_reverse_raw_score
+      aligner = ProfileProfileAligner.new(@structural_profile, @sequence_profile.reverse)
+      begin
+        aligner.global_alignment_affine_gap_cpp.raw_score
+      rescue
+        aligner.global_alignment_affine_gap_rb.raw_score
+      end
     end
 
     def calculate_z_score(iter=100)

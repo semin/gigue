@@ -2,7 +2,7 @@ module Gigue
   class SequenceSequenceAlignment
 
     attr_reader :sequence1, :sequence2,
-                :raw_score, :reverse_score,
+                :raw_score, :reverse_raw_score,
                 :aligned_amino_acids1,
                 :aligned_amino_acids2
 
@@ -177,8 +177,8 @@ module Gigue
       @z_score ||= calculate_z_score
     end
 
-    def reverse_score
-      @reverse_score ||= calculate_reverse_score
+    def reverse_raw_score
+      @reverse_raw_score ||= calculate_reverse_raw_score
     end
 
     def to_flatfile(options={})
@@ -222,7 +222,7 @@ module Gigue
       traceback_linear_gap(max_m, max_n)
     end
 
-    def calculate_reverse_score
+    def calculate_reverse_raw_score
       aligner = SequenceSequenceAligner.new(@sequence1, @sequence2.reverse)
       begin
         aligner.local_alignment_linear_gap_cpp.raw_score
@@ -275,7 +275,7 @@ module Gigue
       traceback_affine_gap(max_m, max_n)
     end
 
-    def calculate_reverse_score
+    def calculate_reverse_raw_score
       aligner = SequenceSequenceAligner.new(@sequence1, @sequence2.reverse)
       begin
         aligner.local_alignment_affine_gap_cpp.raw_score
@@ -311,7 +311,7 @@ module Gigue
       traceback_linear_gap
     end
 
-    def calculate_reverse_score
+    def calculate_reverse_raw_score
       aligner = SequenceSequenceAligner.new(@sequence1, @sequence2.reverse)
       begin
         aligner.global_alignment_linear_gap_cpp.raw_score
@@ -363,7 +363,7 @@ module Gigue
       traceback_affine_gap
     end
 
-    def calculate_reverse_score
+    def calculate_reverse_raw_score
       aligner = SequenceSequenceAligner.new(@sequence1, @sequence2.reverse)
       begin
         aligner.global_alignment_affine_gap_cpp.raw_score

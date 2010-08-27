@@ -133,7 +133,7 @@ module Gigue
 
 
     def initialize(data, code=nil, desc=nil)
-      @data         = data
+      @data         = data.gsub('X','').gsub('Z','Q')
       @code         = code
       @description  = desc
     end
