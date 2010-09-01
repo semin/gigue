@@ -628,7 +628,7 @@ namespace :bench do
                   hits << result
                 end
                 sorted_hits = hits.sort_by { |h| h[-2] }.reverse
-                res_file    = cur_dir + "../tmp/recog/rna/multi_str-single_seq-affine-#{accs}-#{env}.csv"
+                res_file    = cur_dir + "../tmp/recog/rna/multi_str-single_seq-affine-#{sccs}-#{env}.csv"
                 res_file.open("w") do |file|
                   sorted_hits.each do |sorted_hit|
                     file.puts sorted_hit.join(", ")
