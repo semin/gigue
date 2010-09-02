@@ -34,11 +34,14 @@ module Gigue
         elsif line =~ /^>Total\s+(\S+)/i
           @total_table  = Esst.new(type, 'total', Integer($1), @aa_symbols)
           parse_tag     = :tot_row
+        #elsif line =~ /^>Total/i
+          #@total_table  = Esst.new(type, 'total', @essts.size, @aa_symbols)
+          #parse_tag     = :tot_row
         elsif line =~ /^>(\S+)\s+(\S+)/
           break if parse_tag == :tot_row
           @essts    << Esst.new(type, $1, Integer($2), @aa_symbols)
           parse_tag = :esst_row
-        elsif line =~ /^(\S+)\s+(\S+.*)$/ && (parse_tag == :esst_row || parse_tag == :tot_row)
+        elsif (line =~ /^(\S+)\s+(\S+.*)$/) && (parse_tag == :esst_row || parse_tag == :tot_row)
           row_name    = $1
           row_values  = $2.strip.split(/\s+/).map { |v| Float(v) }
           if parse_tag == :esst_row

@@ -1,6 +1,34 @@
 module Gigue
   class Sequence
 
+    inline(:C) do |builder|
+      builder.add_compile_flags '-x c++', '-lstdc++'
+      builder.c_singleton %q{
+        static VALUE calculate_pid_cpp(VALUE aas1, VALUE aas2) {
+          VALUE *aas1_p = RARRAY_PTR(aas1);
+          VALUE *aas2_p = RARRAY_PTR(aas2);
+          VALUE gap     = rb_str_new2("-");
+          long  len1    = RARRAY_LEN(aas1);
+          double align  = 0.0;
+          double ident  = 0.0;
+          double intgp  = 0.0;
+
+          for (long i = 0; i < len1; i++) {
+            if ((rb_str_equal(aas1_p[i], gap) == Qfalse) && (rb_str_equal(aas2_p[i], gap) == Qfalse)) {
+              align += 1.0;
+              if (rb_str_equal(aas1_p[i], aas2_p[i]) == Qtrue) {
+                ident += 1.0;
+              }
+            } else if (((rb_str_equal(aas1_p[i], gap) == Qtrue) && (rb_str_equal(aas2_p[i], gap) == Qfalse)) ||
+                        ((rb_str_equal(aas1_p[i], gap) == Qfalse) && (rb_str_equal(aas2_p[i], gap) == Qtrue))) {
+              intgp += 1.0;
+            }
+          }
+          return DBL2NUM(ident / (align + intgp));
+        }
+      }
+    end
+
     def self.calculate_equal_weights(seqs)
       seqs.each { |s| s.weight = 1.0 / seqs.size }
     end
@@ -14,31 +42,35 @@ module Gigue
     end
 
     def self.calculate_va_weights(seqs)
-      tot   = 0.0
-      dists = Array.new(seqs.size)
+      if seqs.size > 1
+        tot   = 0.0
+        dists = Array.new(seqs.size)
 
-      # calculate all by all percentage dissimilarity
-      (0...(seqs.size-1)).each do |i|
-        dists[i] = Array.new(seqs.size)
-        ((i+1)...seqs.size).each do |j|
-          d = 1 - seqs[i].pid(seqs[j])
-          tot += d
-          dists[i][j] = d
-        end
-      end
-
-      # calculate VA weights
-      (0...seqs.size).each do |i|
-        sum = 0.0
-        (0...seqs.size).each do |j|
-          if (i < j)
-            sum += dists[i][j]
-          elsif (i > j)
-            sum += dists[j][i]
+        # calculate all by all percentage dissimilarity
+        (0...(seqs.size-1)).each do |i|
+          dists[i] = Array.new(seqs.size)
+          ((i+1)...seqs.size).each do |j|
+            d = 1 - seqs[i].pid(seqs[j])
+            tot += d
+            dists[i][j] = d
           end
         end
-        w = (sum / 2.0) / tot
-        seqs[i].weight = w
+
+        # calculate VA weights
+        (0...seqs.size).each do |i|
+          sum = 0.0
+          (0...seqs.size).each do |j|
+            if (i < j)
+              sum += dists[i][j]
+            elsif (i > j)
+              sum += dists[j][i]
+            end
+          end
+          w = (sum / 2.0) / tot
+          seqs[i].weight = w
+        end
+      else
+        seqs[0].weight = 1
       end
     end
 
@@ -48,28 +80,33 @@ module Gigue
         static VALUE calculate_va_weights_cpp(VALUE seqs) {
           VALUE *seqs_ptr = RARRAY_PTR(seqs);
           long seq_cnt    = RARRAY_LEN(seqs);
-          double tot      = 0.0;
-          double dists[seq_cnt][seq_cnt];
+      
+          if (seq_cnt > 1) {
+            double tot      = 0.0;
+            double dists[seq_cnt][seq_cnt];
 
-          for (long i = 0; i < seq_cnt-1; i++) {
-            for (long j = i+1; j < seq_cnt; j++) {
-              double d = 1.0 - NUM2DBL(rb_funcall(seqs_ptr[i], rb_intern("pid"), 1, seqs_ptr[j])); 
-              tot += d;
-              dists[i][j] = d;
-            }
-          }
-
-          for (long i = 0; i < seq_cnt; i++) {
-            double sum = 0.0;
-            for (long j = 0; j < seq_cnt; j++) {
-              if (i < j) {
-                sum += dists[i][j];
-              } else if (i > j) {
-                sum += dists[j][i];
+            for (long i = 0; i < seq_cnt-1; i++) {
+              for (long j = i+1; j < seq_cnt; j++) {
+                double d = 1.0 - NUM2DBL(rb_funcall(seqs_ptr[i], rb_intern("pid"), 1, seqs_ptr[j])); 
+                tot += d;
+                dists[i][j] = d;
               }
             }
-            double w = (sum / 2.0) / tot;
-            rb_funcall(seqs_ptr[i], rb_intern("weight="), 1, DBL2NUM(w));
+
+            for (long i = 0; i < seq_cnt; i++) {
+              double sum = 0.0;
+              for (long j = 0; j < seq_cnt; j++) {
+                if (i < j) {
+                  sum += dists[i][j];
+                } else if (i > j) {
+                  sum += dists[j][i];
+                }
+              }
+              double w = (sum / 2.0) / tot;
+              rb_funcall(seqs_ptr[i], rb_intern("weight="), 1, DBL2NUM(w));
+            }
+          } else {
+            rb_funcall(seqs_ptr[0], rb_intern("weight="), 1, DBL2NUM(0.0));
           }
           return Qnil;
         }
@@ -85,44 +122,48 @@ module Gigue
     end
 
     def self.calculate_blosum_weights_rb(seqs, weight=0.6)
-      clusters = seqs.map { |s| [s] }
-      begin
-        continue = false
-        0.upto(clusters.size-2) do |i|
-          indexes = []
-          (i+1).upto(clusters.size-1) do |j|
-            found = false
-            clusters[i].each do |s1|
-              clusters[j].each do |s2|
-                if s1.pid(s2) >= weight
-                  indexes << j
-                  found = true
-                  break
+      if (seqs.size > 1)
+        clusters = seqs.map { |s| [s] }
+        begin
+          continue = false
+          0.upto(clusters.size-2) do |i|
+            indexes = []
+            (i+1).upto(clusters.size-1) do |j|
+              found = false
+              clusters[i].each do |s1|
+                clusters[j].each do |s2|
+                  if s1.pid(s2) >= weight
+                    indexes << j
+                    found = true
+                    break
+                  end
                 end
+                break if found
               end
-              break if found
+            end
+            unless indexes.empty?
+              continue  = true
+              group     = clusters[i]
+              indexes.each do |k|
+                group       = group.concat(clusters[k])
+                clusters[k] = nil
+              end
+              clusters[i] = group
+              clusters.compact!
             end
           end
-          unless indexes.empty?
-            continue  = true
-            group     = clusters[i]
-            indexes.each do |k|
-              group       = group.concat(clusters[k])
-              clusters[k] = nil
-            end
-            clusters[i] = group
-            clusters.compact!
+        end while(continue)
+
+        seq_cnt = Float(seqs.size)
+
+        clusters.each do |cluster|
+          cluster.each do |seq|
+            weight = cluster.size / seq_cnt
+            seq.weight = weight
           end
         end
-      end while(continue)
-
-      seq_cnt = Float(seqs.size)
-
-      clusters.each do |cluster|
-        cluster.each do |seq|
-          weight = cluster.size / seq_cnt
-          seq.weight = weight
-        end
+      else
+        seqs[0].weight = 1
       end
     end
 
@@ -192,23 +233,28 @@ module Gigue
     def pid_rb(other)
       aas1  = amino_acids
       aas2  = other.amino_acids
-      cols  = aas1.zip(aas2)
       gap   = '-'
       align = 0.0 # no. of aligned columns
       ident = 0.0 # no. of identical columns
       intgp = 0.0 # no. of internal gaps
-      cols.each do |col|
-        if (col[0] != gap) && (col[1] != gap)
+
+      if (aas1.size != aas2.size)
+        $logger.error "Cannot calculate PID between unaligned sequences"
+        exit 1
+      end
+
+      (0...aas1.size).each do |i|
+        if (aas1[i] != gap) && (aas2[i] != gap)
           align += 1
-          if col[0] == col[1]
+          if aas1[i] == aas2[i]
             ident += 1
           end
-        elsif (((col[0] == gap) && (col[1] != gap)) ||
-                ((col[0] != gap) && (col[1] == gap)))
+        elsif (((aas1[i] == gap) && (aas2[i] != gap)) ||
+                ((aas1[i] != gap) && (aas2[i] == gap)))
           intgp += 1
         end
       end
-      Float(ident) / (align + intgp)
+      ident / (align + intgp)
     end
 
     inline(:C) do |builder|
