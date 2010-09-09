@@ -239,8 +239,7 @@ module Gigue
       intgp = 0.0 # no. of internal gaps
 
       if (aas1.size != aas2.size)
-        $logger.error "Cannot calculate PID between unaligned sequences"
-        exit 1
+        $logger.warn "Nonsense to calculate PID between unaligned sequences!"
       end
 
       (0...aas1.size).each do |i|
@@ -261,13 +260,20 @@ module Gigue
       builder.add_compile_flags '-x c++', '-lstdc++'
       builder.c <<-EOCPP
         static VALUE pid_cpp(VALUE other) {
-          VALUE seq1 = rb_iv_get(self, "@data");
-          VALUE seq2 = rb_iv_get(other, "@data");
-          char *seq1_ptr = RSTRING_PTR(seq1);
-          char *seq2_ptr = RSTRING_PTR(seq2);
-          double align = 0.0;
-          double ident = 0.0;
-          double intgp = 0.0;
+          VALUE logger    = rb_gv_get("$logger");
+          VALUE seq1      = rb_iv_get(self, "@data");
+          VALUE seq2      = rb_iv_get(other, "@data");
+          char *seq1_ptr  = RSTRING_PTR(seq1);
+          char *seq2_ptr  = RSTRING_PTR(seq2);
+          long seq1_len   = RSTRING_LEN(seq1);
+          long seq2_len   = RSTRING_LEN(seq2);
+          double align    = 0.0;
+          double ident    = 0.0;
+          double intgp    = 0.0;
+
+          if (seq1_len != seq2_len) {
+            rb_funcall(logger, rb_intern("warn"), 1, rb_str_new2("It's nonsense to calculate PID between unaligned sequences!"));
+          }
 
           for (long i = 0; i < RSTRING_LEN(seq1); i++) {
             if ((seq1_ptr[i] != '-') && (seq2_ptr[i] != '-')) {

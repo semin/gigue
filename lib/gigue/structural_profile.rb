@@ -6,7 +6,8 @@ module Gigue
     VVLe, VLe, Le, He = 2, 2, 4, 8
 
     attr_reader :joytem, :essts, :sequences,
-                :length, :depth, :positions
+                :length, :depth, :positions,
+                :amino_acids
 
     def self.create_from_joy_tem_and_essts(joy, essts, options={})
       joytem    = JoyTem.new(joy)
@@ -161,8 +162,7 @@ module Gigue
     end
 
     def initialize(pss, options={})
-      @opts = {
-      }.merge!(options)
+      @opts       = {}.merge!(options)
       @positions  = pss
       @joytem     = @opts[:joytem]
       @essts      = @opts[:essts]

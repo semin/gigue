@@ -8,6 +8,7 @@ require 'inline'
 require 'ostruct'
 require 'pathname'
 require 'stringio'
+
 require File.join(File.dirname(__FILE__), 'array_extensions')
 require File.join(File.dirname(__FILE__), 'enumerable_extensions')
 require File.join(File.dirname(__FILE__), 'gigue', 'esst')
@@ -36,5 +37,5 @@ $logger.level = Logger::DEBUG
 module Gigue
   VERSION = '0.0.1'
   NONE, UP, LEFT, DIAG = 0, 1, 2, 3
-  AMINO_ACIDS = 'ACDEFGHIKLMNPQRSTVWYJ'
+  #AMINO_ACIDS = 'ACDEFGHIKLMNPQRSTVWYJ'
 end

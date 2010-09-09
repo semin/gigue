@@ -1,11 +1,14 @@
 module Gigue
   class ProfileProfileAligner
 
-    attr_reader :structural_profile, :sequence_profile, :algorithm
+    attr_reader :structural_profile, :sequence_profile,
+                :algorithm
 
     def initialize(str_prf, seq_prf, algo=nil)
       @structural_profile = str_prf
       @sequence_profile   = seq_prf
+      @amino_acids        = str_prf.essts.rownames
+      @CJ_distinguished   = @amino_acids.include?('J')
       str_seq_ratio       = str_prf.length / Float(seq_prf.length)
       if algo.nil?
         if (str_seq_ratio > 1.5)
@@ -76,11 +79,12 @@ module Gigue
           long max_n    = 0;
 
           VALUE klass   = rb_const_get(rb_cObject, rb_intern("Gigue"));
-          VALUE aas_str = rb_const_get(klass, rb_intern("AMINO_ACIDS"));
-          VALUE aas_ary = rb_funcall(aas_str, rb_intern("split"), 1, rb_str_new2(""));
+          VALUE aas_ary = rb_iv_get(self, "@amino_acids");
           long aas_len  = NUM2LONG(rb_funcall(aas_ary, rb_intern("length"), 0));
           VALUE aa_C    = rb_str_new2("C");
+          VALUE aa_J    = rb_str_new2("J");
           VALUE aa_U    = rb_str_new2("U");
+          VALUE aa_CJ   = rb_iv_get(self, "@CJ_distinguished");
 
           // 1. create score and point matrices
           VALUE score = rb_ary_new2(seq_plen+1);
@@ -125,7 +129,7 @@ module Gigue
                 VALUE aa = rb_ary_entry(aas_ary, ai);
                 double w = NUM2DBL(rb_funcall(seq_ps, rb_intern("relative_probability_of"), 1, aa));
                 double s = 0.0;
-                if (rb_str_equal(aa_C, aa) == Qtrue) {
+                if ((aa_CJ == Qtrue) && (rb_str_equal(aa_C, aa) == Qtrue)) {
                   s = NUM2DBL(rb_funcall(str_ps, rb_intern("mat_score"), 1, aa_U));
                 } else {
                   s = NUM2DBL(rb_funcall(str_ps, rb_intern("mat_score"), 1, aa));
@@ -244,13 +248,15 @@ module Gigue
       # 3. fill in score and point matrices
       (1..seq_plen).each do |m|
         (1..str_plen).each do |n|
-
           # calculate profile-profile match score
           pos_mat_score = 0
-          AMINO_ACIDS.split('').each do |aa|
-            #w = seq_pss[seq_i].probability_of(aa)
+          @amino_acids.each do |aa|
             w = seq_pss[m-1].relative_probability_of(aa)
-            s = str_pss[n-1].mat_score(aa == 'C' ? 'U' : aa)
+            s = if (@CJ_distinguished && aa == 'C')
+              str_pss[n-1].mat_score('U')
+            else
+              str_pss[n-1].mat_score(aa)
+            end
             pos_mat_score += (w * s)
           end
           pos_mat_score = pos_mat_score.round
@@ -294,11 +300,12 @@ module Gigue
           long max_n    = 0;
 
           VALUE klass   = rb_const_get(rb_cObject, rb_intern("Gigue"));
-          VALUE aas_str = rb_const_get(klass, rb_intern("AMINO_ACIDS"));
-          VALUE aas_ary = rb_funcall(aas_str, rb_intern("split"), 1, rb_str_new2(""));
+          VALUE aas_ary = rb_iv_get(self, "@amino_acids");
           long aas_len  = NUM2LONG(rb_funcall(aas_ary, rb_intern("length"), 0));
           VALUE aa_C    = rb_str_new2("C");
+          VALUE aa_J    = rb_str_new2("J");
           VALUE aa_U    = rb_str_new2("U");
+          VALUE aa_CJ   = rb_iv_get(self, "@CJ_distinguished");
 
           // 1. create score, point, jump matrices for match, deletion, and insertion
           VALUE mat_score = rb_ary_new2(seq_plen+1);
@@ -402,7 +409,7 @@ module Gigue
                 VALUE aa = rb_ary_entry(aas_ary, ai);
                 double w = NUM2DBL(rb_funcall(seq_ps, rb_intern("relative_probability_of"), 1, aa));
                 double s = 0.0;
-                if (rb_str_equal(aa_C, aa) == Qtrue) {
+                if ((aa_CJ == Qtrue) && (rb_str_equal(aa_C, aa) == Qtrue)) {
                   s = NUM2DBL(rb_funcall(str_ps, rb_intern("mat_score"), 1, aa_U));
                 } else {
                   s = NUM2DBL(rb_funcall(str_ps, rb_intern("mat_score"), 1, aa));
@@ -654,13 +661,15 @@ module Gigue
 
       (1..seq_plen).each do |m|
         (1..str_plen).each do |n|
-
           # calculate profile-profile match score
           pos_mat_score = 0
-          AMINO_ACIDS.split('').each do |aa|
-            #w = seq_pss[seq_i].probability_of(aa)
+          @amino_acids.each do |aa|
             w = seq_pss[m-1].relative_probability_of(aa)
-            s = str_pss[n-1].mat_score(aa == 'C' ? 'U' : aa)
+            s = if (@CJ_distinguished && aa == 'C')
+              str_pss[n-1].mat_score('U')
+            else
+              str_pss[n-1].mat_score(aa)
+            end
             pos_mat_score += (w * s)
           end
           pos_mat_score = pos_mat_score.round
@@ -765,11 +774,12 @@ module Gigue
           long max_n    = 0;
 
           VALUE klass   = rb_const_get(rb_cObject, rb_intern("Gigue"));
-          VALUE aas_str = rb_const_get(klass, rb_intern("AMINO_ACIDS"));
-          VALUE aas_ary = rb_funcall(aas_str, rb_intern("split"), 1, rb_str_new2(""));
+          VALUE aas_ary = rb_iv_get(self, "@amino_acids");
           long aas_len  = NUM2LONG(rb_funcall(aas_ary, rb_intern("length"), 0));
           VALUE aa_C    = rb_str_new2("C");
+          VALUE aa_J    = rb_str_new2("J");
           VALUE aa_U    = rb_str_new2("U");
+          VALUE aa_CJ   = rb_iv_get(self, "@CJ_distinguished");
 
           // 1. create score and point matrices
           VALUE score = rb_ary_new2(seq_plen+1);
@@ -814,7 +824,7 @@ module Gigue
                 VALUE aa = rb_ary_entry(aas_ary, ai);
                 double w = NUM2DBL(rb_funcall(seq_ps, rb_intern("relative_probability_of"), 1, aa));
                 double s = 0.0;
-                if (rb_str_equal(aa_C, aa) == Qtrue) {
+                if ((aa_CJ == Qtrue) && (rb_str_equal(aa_C, aa) == Qtrue)) {
                   s = NUM2DBL(rb_funcall(str_ps, rb_intern("mat_score"), 1, aa_U));
                 } else {
                   s = NUM2DBL(rb_funcall(str_ps, rb_intern("mat_score"), 1, aa));
@@ -916,13 +926,15 @@ module Gigue
       # 3. fill in score and point matrices
       (1..seq_plen).each do |m|
         (1..str_plen).each do |n|
-
           # calculate profile-profile match score
           pos_mat_score = 0
-          AMINO_ACIDS.split('').each do |aa|
-            #w = seq_pss[seq_i].probability_of(aa)
+          @amino_acids.each do |aa|
             w = seq_pss[m-1].relative_probability_of(aa)
-            s = str_pss[n-1].mat_score(aa == 'C' ? 'U' : aa)
+            s = if (@CJ_distinguished && aa == 'C')
+              str_pss[n-1].mat_score('U')
+            else
+              str_pss[n-1].mat_score(aa)
+            end
             pos_mat_score += (w * s)
           end
           pos_mat_score = pos_mat_score.round
@@ -933,9 +945,9 @@ module Gigue
           max = [mat, del, ins].max
           score[m][n] = max
           point[m][n] = case max
-                        when mat  then DIAG
-                        when del  then LEFT
-                        when ins  then UP
+                        when mat then DIAG
+                        when del then LEFT
+                        when ins then UP
                         end
         end
       end
@@ -961,11 +973,13 @@ module Gigue
           long max_n    = 0;
 
           VALUE klass   = rb_const_get(rb_cObject, rb_intern("Gigue"));
-          VALUE aas_str = rb_const_get(klass, rb_intern("AMINO_ACIDS"));
-          VALUE aas_ary = rb_funcall(aas_str, rb_intern("split"), 1, rb_str_new2(""));
+          VALUE aas_ary = rb_iv_get(self, "@amino_acids");
           long aas_len  = NUM2LONG(rb_funcall(aas_ary, rb_intern("length"), 0));
           VALUE aa_C    = rb_str_new2("C");
+          VALUE aa_J    = rb_str_new2("J");
           VALUE aa_U    = rb_str_new2("U");
+          VALUE aa_CJ   = rb_iv_get(self, "@CJ_distinguished");
+
 
           // 1. create score, point, jump matrices for match, deletion, and insertion
           VALUE mat_score = rb_ary_new2(seq_plen+1);
@@ -1090,13 +1104,14 @@ module Gigue
                 VALUE aa = rb_ary_entry(aas_ary, ai);
                 double w = NUM2DBL(rb_funcall(seq_ps, rb_intern("relative_probability_of"), 1, aa));
                 double s = 0.0;
-                if (rb_str_equal(aa_C, aa) == Qtrue) {
+                if ((aa_CJ == Qtrue) && (rb_str_equal(aa_C, aa) == Qtrue)) {
                   s = NUM2DBL(rb_funcall(str_ps, rb_intern("mat_score"), 1, aa_U));
                 } else {
                   s = NUM2DBL(rb_funcall(str_ps, rb_intern("mat_score"), 1, aa));
                 }
                 tmp_pmat += (w * s);
               }
+
 
               long pmat = NUM2LONG(rb_funcall(rb_float_new(tmp_pmat), rb_intern("round"), 0));
               long prv_mat_score = NUM2LONG(rb_ary_entry(rb_ary_entry(mat_score, m-1), n-1));
@@ -1268,13 +1283,15 @@ module Gigue
 
       (1..seq_plen).each do |m|
         (1..str_plen).each do |n|
-
           # calculate profile-profile match score
           pos_mat_score = 0
-          AMINO_ACIDS.split('').each do |aa|
-            #w = seq_pss[seq_i].probability_of(aa)
+          @amino_acids.each do |aa|
             w = seq_pss[m-1].relative_probability_of(aa)
-            s = str_pss[n-1].mat_score(aa == 'C' ? 'U' : aa)
+            s = if (@CJ_distinguished && aa == 'C')
+              str_pss[n-1].mat_score('U')
+            else
+              str_pss[n-1].mat_score(aa)
+            end
             pos_mat_score += (w * s)
           end
           pos_mat_score = pos_mat_score.round

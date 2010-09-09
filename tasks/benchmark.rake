@@ -46,7 +46,7 @@ namespace :bench do
   rna_tems  = Pathname::glob(data_dir + "./bipa/scop/rep/rna/*/rnamodsalign.tem")
   envs      = [64, 128]
   pids      = (40..90).step(10)
-  sigmas    = [0.0001, 0.001, 0.01, 1, 3, 5]
+  sigmas    = [0.0001, 0.001, 0.01, 0.1, 3, 5]
 
   # load SCOP description file
   sunid_to_sccs = {}
@@ -71,7 +71,7 @@ namespace :bench do
   namespace :align do
 
     desc "Test DNA-ESSTs using multipe PID cutoffs and sigma values in terms of alignment accracy"
-    task :dna do
+    task :dnafam do
 
       fm = ForkManager.new(6)
       fm.manage do
@@ -134,7 +134,7 @@ namespace :bench do
                         ]
 
                         file.puts elems.join(", ")
-                        puts "%-20s %-20s %-40s %8.6f %8.6f %10.8f" % elems
+                        $logger.info "%-20s %-20s %-40s %8.6f %8.6f %10.8f" % elems
                       end
                     end
                   end
@@ -146,6 +146,84 @@ namespace :bench do
       end
     end
 
+
+    desc "Test DNA-ESSTs using multipe PID cutoffs and sigma values in terms of alignment accracy"
+    task :rnafam do
+
+      fm = ForkManager.new(8)
+      fm.manage do
+        rna_tems.each do |tem|
+          fm.fork do
+            fam_sunid     = tem.to_s.match(/(\d+)/)[1]
+            fam_sccs      = sunid_to_sccs[fam_sunid]
+            bio_tem       = Bio::FlatFile.auto(tem)
+            entries       = bio_tem.entries
+            entries_hash  = {}
+            csv_file      = ali_dir + "rna/#{fam_sccs}.csv"
+
+            csv_file.open("w") do |file|
+              entries.each do |entry|
+                if !entries_hash.has_key?(entry.entry_id)
+                  entries_hash[entry.entry_id] = {}
+                end
+                entries_hash[entry.entry_id][entry.definition] = entry
+              end
+
+              entries_hash.keys.each do |ref_entry_id|
+                ref = entries_hash[ref_entry_id]
+                joy = ""
+                ref.values.each do |e|
+                  joy += %Q{>P1;#{e.entry_id}\n#{e.definition}\n#{e.data.gsub('-','').gsub("\n",'')}*\n}
+                end
+
+                others = entries_hash.reject { |k, v| k == ref_entry_id }
+                others.each do |qry_entry_id, qry_entry_hash|
+                  envs.each do |env|
+                    pids.each do |pid|
+                      sigmas.each do |sigma|
+                        esst              = mat_dir + "ulla-rna#{env}-pid#{pid}-sigma#{sigma}-out2.mat"
+                        str_prf           = StructuralProfile.create_from_joy_tem_and_essts(joy, esst)
+                        ref_seq_ent       = ref['sequence']
+                        ref_qry_ent       = qry_entry_hash['sequence']
+                        ref_str_seq       = Sequence.new(ref_seq_ent.aaseq, ref_seq_ent.entry_id, ref_seq_ent.definition)
+                        ref_qry_seq       = Sequence.new(ref_qry_ent.aaseq, ref_qry_ent.entry_id, ref_qry_ent.definition)
+                        ref_str_seq_cols  = match_positions(ref_seq_ent.aaseq.split(''), ref_qry_seq.amino_acids)
+                        ref_str_seq_pid   = Sequence::calculate_pid_cpp(ref_seq_ent.aaseq.split(''), ref_qry_seq.amino_acids)
+
+                        raw_qry_seq       = Sequence.new(ref_qry_ent.aaseq.gsub('-',''), ref_qry_ent.entry_id, ref_qry_ent.definition)
+                        psa               = ProfileSequenceAligner.new(str_prf, raw_qry_seq)
+                        gal               = psa.global_alignment_affine_gap_cpp
+                        gig_str_seq_cols  = match_positions(gal.aligned_structural_profile_positions.map(&:probe), gal.aligned_amino_acids)
+                        gig_str_seq_pid   = Sequence::calculate_pid_cpp(gal.aligned_structural_profile_positions.map(&:probe), gal.aligned_amino_acids)
+                        gig_prf_seq       = Sequence.new(gal.aligned_structural_profile_positions.map(&:probe).join(''), ref_entry_id, ref_seq_ent.definition)
+                        gig_qry_seq       = Sequence.new(gal.aligned_amino_acids.join(''), qry_entry_hash, ref_qry_ent.definition)
+
+                        mat_cols  = (ref_str_seq_cols & gig_str_seq_cols).size
+                        ali_score = mat_cols / Float(ref_str_seq_cols.size)
+
+                        elems = [
+                          "#{ref_entry_id} (#{sunid_to_sccs[ref_entry_id]})",
+                          "#{qry_entry_id} (#{sunid_to_sccs[qry_entry_id]})",
+                          File.basename(esst, ".mat").gsub("ulla-ent-rna-","").gsub("-logo",""),
+                          ref_str_seq_pid,
+                          gig_str_seq_pid,
+                          ali_score
+                        ]
+
+                        file.puts elems.join(", ")
+                        $logger.info "%-20s %-20s %-40s %8.6f %8.6f %10.8f" % elems
+                      end
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+
+
   end
 
 
@@ -153,7 +231,7 @@ namespace :bench do
     namespace :linear do
 
       desc "Remote homology recognition performance"
-      task :dna do
+      task :dnafam do
 
         seqs    = []
         scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
@@ -202,11 +280,11 @@ namespace :bench do
                   begin
                     gal = psa.global_alignment_linear_gap_cpp
                   rescue
-                    puts "Problematic prf:"
-                    puts ">#{dna_tem}"
-                    puts "Problematic seq:"
-                    puts ">#{seq.code}"
-                    puts "#{seq.data}"
+                    $logger.debug "Problematic prf:"
+                    $logger.debug ">#{dna_tem}"
+                    $logger.debug "Problematic seq:"
+                    $logger.debug ">#{seq.code}"
+                    $logger.debug "#{seq.data}"
                   end
 
                   if gal.raw_score < gal.reverse_score
@@ -239,7 +317,7 @@ namespace :bench do
 
 
       desc "Remote homology recognition performance"
-      task :rna do
+      task :rnafam do
 
         seqs    = []
         scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
@@ -288,11 +366,11 @@ namespace :bench do
                   begin
                     gal = psa.global_alignment_linear_gap_cpp
                   rescue
-                    puts "Problematic prf:"
-                    puts ">#{rna_tem}"
-                    puts "Problematic seq:"
-                    puts ">#{seq.code}"
-                    puts "#{seq.data}"
+                    $logger.debug "Problematic prf:"
+                    $logger.debug ">#{rna_tem}"
+                    $logger.debug "Problematic seq:"
+                    $logger.debug ">#{seq.code}"
+                    $logger.debug "#{seq.data}"
                   end
 
                   if gal.raw_score < gal.reverse_score
@@ -326,7 +404,7 @@ namespace :bench do
     namespace :affine do
 
       desc "Remote homology recognition performance"
-      task :dna do
+      task :dnafam do
         seqs    = []
         scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
 
@@ -374,11 +452,11 @@ namespace :bench do
                   begin
                     gal = psa.global_alignment_affine_gap_cpp
                   rescue
-                    puts "Problematic prf:"
-                    puts ">#{dna_tem}"
-                    puts "Problematic seq:"
-                    puts ">#{seq.code}"
-                    puts "#{seq.data}"
+                    $logger.debug "Problematic prf:"
+                    $logger.debug ">#{dna_tem}"
+                    $logger.debug "Problematic seq:"
+                    $logger.debug ">#{seq.code}"
+                    $logger.debug "#{seq.data}"
                   end
 
                   if gal.raw_score < gal.reverse_score
@@ -411,7 +489,7 @@ namespace :bench do
 
 
       desc "Remote homology recognition performance"
-      task :rna do
+      task :rnafam do
 
         seqs    = []
         scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
@@ -460,11 +538,11 @@ namespace :bench do
                   begin
                     gal = psa.global_alignment_affine_gap_cpp
                   rescue
-                    puts "Problematic prf:"
-                    puts ">#{rna_tem}"
-                    puts "Problematic seq:"
-                    puts ">#{seq.code}"
-                    puts "#{seq.data}"
+                    $logger.debug "Problematic prf:"
+                    $logger.debug ">#{rna_tem}"
+                    $logger.debug "Problematic seq:"
+                    $logger.debug ">#{seq.code}"
+                    $logger.debug "#{seq.data}"
                   end
 
                   if gal.raw_score < gal.reverse_score

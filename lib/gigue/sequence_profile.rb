@@ -23,12 +23,8 @@ module Gigue
         aa_rel_prbs = Hash.new(0.0)
 
         probe.split('').each_with_index do |aa, si|
-          if AMINO_ACIDS.include?(aa) || aa == '-'
-            aa_frqs[aa] += 1 * msa.sequences[si].weight
-            aa_raw_frqs[aa] += 1
-          else
-            $logger.warn "#{aa} is a unknown type of amino acid and ignored."
-          end
+          aa_frqs[aa] += 1 * msa.sequences[si].weight
+          aa_raw_frqs[aa] += 1
         end
 
         sum     = aa_frqs.values.sum
