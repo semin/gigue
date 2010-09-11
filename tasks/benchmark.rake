@@ -352,7 +352,7 @@ namespace :bench do
       task :lindna do
 
         seqs    = []
-        scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
+        scop40  = cur_dir + "../data/scop/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
 
         Bio::FlatFile.open(Bio::FastaFormat, scop40) do |ff|
           ff.each do |entry|
@@ -376,8 +376,9 @@ namespace :bench do
             $logger.info  "Searching against DNA-bindnig SCOP family, #{sccs} (#{i+1}/#{dna_tems.size})"
 
             fm.fork do
-              [ dna_esst64_sigma0_002, dna_esst128_sigma0_002 ].each do |esst|
-                env   = esst.to_s.match(/(esst\d+)/)[1]
+              [ mat_dir + "ulla-dna64-pid60-sigma0.001-out2.mat",
+                mat_dir + "ulla-dna128-pid60-sigma0.001-out2.mat"].each do |esst|
+                env   = esst.to_s.match(/(dna\d+)/)[1]
                 stp   = StructuralProfile::create_from_joy_tem_and_essts(dna_tem, esst)
                 hits  = []
                 seqs.each do |seq|
@@ -468,8 +469,9 @@ namespace :bench do
             $logger.info  "Searching against RNA-bindnig SCOP family, #{sccs} (#{i+1}/#{rna_tems.size})"
 
             fm.fork do
-              [ rna_esst64_sigma0_002, rna_esst128_sigma0_002 ].each do |esst|
-                env   = esst.to_s.match(/(esst\d+)/)[1]
+              [ mat_dir + "ulla-rna64-pid60-sigma0.001-out2.mat",
+                mat_dir + "ulla-rna128-pid60-sigma0.001-out2.mat"].each do |esst|
+                env   = esst.to_s.match(/(rna\d+)/)[1]
                 stp   = StructuralProfile::create_from_joy_tem_and_essts(rna_tem, esst)
                 hits  = []
                 seqs.each do |seq|
@@ -559,8 +561,9 @@ namespace :bench do
             $logger.info  "Searching against DNA-bindnig SCOP family, #{sccs} (#{i+1}/#{dna_tems.size})"
 
             fm.fork do
-              [ dna_esst64_sigma0_002, dna_esst128_sigma0_002 ].each do |esst|
-                env   = esst.to_s.match(/(esst\d+)/)[1]
+              [ mat_dir + "ulla-dna64-pid60-sigma0.001-out2.mat",
+                mat_dir + "ulla-dna128-pid60-sigma0.001-out2.mat"].each do |esst|
+                env   = esst.to_s.match(/(dna\d+)/)[1]
                 stp   = StructuralProfile::create_from_joy_tem_and_essts(dna_tem, esst)
                 hits  = []
                 seqs.each do |seq|
@@ -651,8 +654,9 @@ namespace :bench do
             $logger.info  "Searching against RNA-bindnig SCOP family, #{sccs} (#{i+1}/#{rna_tems.size})"
 
             fm.fork do
-              [ rna_esst64_sigma0_002, rna_esst128_sigma0_002 ].each do |esst|
-                env   = esst.to_s.match(/(esst\d+)/)[1]
+              [ mat_dir + "ulla-rna64-pid60-sigma0.001-out2.mat",
+                mat_dir + "ulla-rna128-pid60-sigma0.001-out2.mat"].each do |esst|
+                env   = esst.to_s.match(/(rna\d+)/)[1]
                 stp   = StructuralProfile::create_from_joy_tem_and_essts(rna_tem, esst)
                 hits  = []
                 seqs.each do |seq|
