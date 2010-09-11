@@ -221,50 +221,55 @@ namespace :bench do
     desc "Parse PSI-BLAST results and create CSV files"
     task :psires do
 
-      %w[dna rna].each do |na|
-        psi_dir = cur_dir + "../tmp/rec/psi/#{na}"
-        xmls    = Pathname::glob(psi_dir + "*.xml")
-        xmls.each do |xml|
-          hits  = []
-          rs    = Bio::Blast.reports(File.open(xml))
-          rs.each do |r|
-            r.each do |hit|
-              if (hit.target_id !~ /^UniRef/)
-                qry_sunid = hit.query_def
-                qry_sccs  = sunid_to_sccs[qry_sunid].split('.')
-                qry_class = qry_sccs[0]
-                qry_fold  = qry_sccs[0..1].join('.')
-                qry_sfam  = qry_sccs[0..2].join('.')
-                qry_fam   = qry_sccs[0..3].join('.')
+      fm = ForkManager.new(8)
+      fm.manage do
+        %w[dna rna].each do |na|
+          psi_dir = cur_dir + "../tmp/rec/psi/#{na}"
+          xmls    = Pathname::glob(psi_dir + "*.xml")
+          xmls.each do |xml|
+            fm.fork do
+              hits  = []
+              rs    = Bio::Blast.reports(File.open(xml))
+              rs.each do |r|
+                r.each do |hit|
+                  if (hit.target_id !~ /^UniRef/)
+                    qry_sunid = hit.query_def
+                    qry_sccs  = sunid_to_sccs[qry_sunid].split('.')
+                    qry_class = qry_sccs[0]
+                    qry_fold  = qry_sccs[0..1].join('.')
+                    qry_sfam  = qry_sccs[0..2].join('.')
+                    qry_fam   = qry_sccs[0..3].join('.')
 
-                tgt_sid   = hit.target_id.gsub(/^[g|e]/, 'd')
-                tgt_sunid = sid_to_sunid[tgt_sid]
-                tgt_sccs  = sid_to_sccs[tgt_sid].split('.')
-                tgt_class = tgt_sccs[0]
-                tgt_fold  = tgt_sccs[0..1].join('.')
-                tgt_sfam  = tgt_sccs[0..2].join('.')
-                tgt_fam   = tgt_sccs[0..3].join('.')
+                    tgt_sid   = hit.target_id.gsub(/^[g|e]/, 'd')
+                    tgt_sunid = sid_to_sunid[tgt_sid]
+                    tgt_sccs  = sid_to_sccs[tgt_sid].split('.')
+                    tgt_class = tgt_sccs[0]
+                    tgt_fold  = tgt_sccs[0..1].join('.')
+                    tgt_sfam  = tgt_sccs[0..2].join('.')
+                    tgt_fam   = tgt_sccs[0..3].join('.')
 
-                next if qry_class != tgt_class
+                    next if qry_class != tgt_class
 
-                cols = [
-                  qry_sunid, qry_class, qry_fold, qry_sfam, qry_fam,
-                  tgt_sunid, tgt_class, tgt_fold, tgt_sfam, tgt_fam,
-                  hit.bit_score, hit.evalue
-                ]
+                    cols = [
+                      qry_sunid, qry_class, qry_fold, qry_sfam, qry_fam,
+                      tgt_sunid, tgt_class, tgt_fold, tgt_sfam, tgt_fam,
+                      hit.bit_score, hit.evalue
+                    ]
 
-                log_fmt = "%8d %2s %5s %9s %12s %8d %2s %5s %9s %12s %10.3f %g"
-                $logger.info log_fmt % cols
-                hits << cols
+                    log_fmt = "%8d %2s %5s %9s %12s %8d %2s %5s %9s %12s %10.3f %g"
+                    $logger.info log_fmt % cols
+                    hits << cols
+                  end
+                end
               end
-            end
-          end
 
-          sorted_hits = hits.sort_by { |h| h[-1] }
-          res_file    = psi_dir + "#{xml.basename('.xml')}.csv"
-          res_file.open("w") do |file|
-            sorted_hits.each do |sorted_hit|
-              file.puts sorted_hit.join(", ")
+              sorted_hits = hits.sort_by { |h| h[-1] }
+              res_file    = psi_dir + "#{xml.basename('.xml')}.csv"
+              res_file.open("w") do |file|
+                sorted_hits.each do |sorted_hit|
+                  file.puts sorted_hit.join(", ")
+                end
+              end
             end
           end
         end
@@ -279,7 +284,9 @@ namespace :bench do
     desc "Test recognition performance of PSI-BLAST for DNA/RNA-binding protein families"
     task :psi do
 
-      blastdb = cur_dir + "../data/scop/astral40-uniref90.fa"
+      #blastdb = cur_dir + "../data/scop/astral40-uniref90.fa"
+      blastdb = cur_dir + "../data/scop/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
+      #blastdb = cur_dir + "../data/scop/astral40.fa"
 
       %w[dna rna].each do |na|
         psi_dir = cur_dir + "../tmp/rec/psi/#{na}"
@@ -288,48 +295,48 @@ namespace :bench do
         fm.manage do
           tems = Pathname::glob(data_dir + "./bipa/scop/rep/#{na}/*/#{na}modsalign.tem")
           tems.each_with_index do |tem, i|
-              sunid = tem.to_s.match(/(\d+)/)[1]
-              sccs  = sunid_to_sccs[sunid]
-              unless sccs.match(/^[a|b|c|d|e|f|g]/)
-                $logger.warn "Skip #{sccs}, it's not a true SCOP class"
-                next
+            sunid = tem.to_s.match(/(\d+)/)[1]
+            sccs  = sunid_to_sccs[sunid]
+            unless sccs.match(/^[a|b|c|d|e|f|g]/)
+              $logger.warn "Skip #{sccs}, it's not a true SCOP class"
+              next
+            end
+
+            fm.fork do
+              bio_tem       = Bio::FlatFile.auto(tem)
+              entries       = bio_tem.entries
+              entries_hash  = {}
+
+              entries.each do |entry|
+                if !entries_hash.has_key?(entry.entry_id)
+                  entries_hash[entry.entry_id] = {}
+                end
+                entries_hash[entry.entry_id][entry.definition] = entry
               end
 
-              fm.fork do
-                bio_tem       = Bio::FlatFile.auto(tem)
-                entries       = bio_tem.entries
-                entries_hash  = {}
+              # 1. create an input file for the first sequence in a FASTA format
+              first_entry_id  = entries[0].entry_id
+              first_entry_aa  = entries_hash[first_entry_id]['sequence']
+              fasta           = ">#{first_entry_id}\n#{first_entry_aa.aaseq.gsub('-','')}"
+              fasta_file      = psi_dir + "#{first_entry_id}.fa"
+              fasta_file.open('w') { |f| f.puts fasta }
 
-                entries.each do |entry|
-                  if !entries_hash.has_key?(entry.entry_id)
-                    entries_hash[entry.entry_id] = {}
-                  end
-                  entries_hash[entry.entry_id][entry.definition] = entry
-                end
-
-                # 1. create an input file for the first sequence in a FASTA format
-                first_entry_id  = entries[0].entry_id
-                first_entry_aa  = entries_hash[first_entry_id]['sequence']
-                fasta           = ">#{first_entry_id}\n#{first_entry_aa.aaseq.gsub('-','')}"
-                fasta_file      = psi_dir + "#{first_entry_id}.fa"
-                fasta_file.open('w') { |f| f.puts fasta }
-
-                # 2. create an input msa file in a ClustalW format
-                clustalw = []
-                entries_hash.keys.each do |entry_id|
-                  seq_entry = entries_hash[entry_id]['sequence']
-                  clustalw  << "%-10s     %s" % [entry_id, seq_entry.aaseq]
-                end
-                clustalw_file = psi_dir + "#{sccs}.msa"
-                clustalw_file.open('w') { |f| f.puts clustalw.join("\n") }
-
-                # 3. Run PSI-BLAST
-                blastout = psi_dir + "#{sccs}.xml"
-                cmd = "/BiO/Install/Blast/bin/blastpgp -i #{fasta_file} -B #{clustalw_file} -e 100 -t 1 -j 5 -d #{blastdb} -m 7 -o #{blastout}"
-                system cmd
-
-                $logger.info "PSI-BLAST searching against #{na.upcase}-bindnig SCOP family, #{sccs} (#{i+1}/#{tems.size}): done"
+              # 2. create an input msa file in a ClustalW format
+              clustalw = []
+              entries_hash.keys.each do |entry_id|
+                seq_entry = entries_hash[entry_id]['sequence']
+                clustalw  << "%-10s     %s" % [entry_id, seq_entry.aaseq]
               end
+              clustalw_file = psi_dir + "#{sccs}.msa"
+              clustalw_file.open('w') { |f| f.puts clustalw.join("\n") }
+
+              # 3. Run PSI-BLAST
+              blastout = psi_dir + "#{sccs}.xml"
+              cmd = "/BiO/Install/Blast/bin/blastpgp -i #{fasta_file} -B #{clustalw_file} -e 1e100 -t 1 -j 5 -d #{blastdb} -m 7 -o #{blastout}"
+              system cmd
+
+              $logger.info "PSI-BLAST searching against #{na.upcase}-bindnig SCOP family, #{sccs} (#{i+1}/#{tems.size}): done"
+            end
           end
         end
       end
