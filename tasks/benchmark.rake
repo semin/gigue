@@ -281,6 +281,54 @@ end
 
 namespace :bench do
   namespace :rec do
+    desc "Test recognition performance of BLAST for DNA/RNA-binding protein families"
+    task :bla do
+
+      blastdb = cur_dir + "../data/scop/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
+
+      %w[dna rna].each do |na|
+        bla_dir = cur_dir + "../tmp/rec/bla/#{na}"
+
+        fm = ForkManager.new(8)
+        fm.manage do
+          tems = Pathname::glob(data_dir + "./bipa/scop/rep/#{na}/*/#{na}modsalign.tem")
+          tems.each_with_index do |tem, i|
+            sunid = tem.to_s.match(/(\d+)/)[1]
+            sccs  = sunid_to_sccs[sunid]
+            unless sccs.match(/^[a|b|c|d|e|f|g]/)
+              $logger.warn "Skip #{sccs}, it's not a true SCOP class"
+              next
+            end
+
+            fm.fork do
+              bio_tem = Bio::FlatFile.auto(tem)
+              entries = bio_tem.entries
+              entries.each do |e|
+                if e.definition =~ /^sequence/
+                  # 1. create an input file for sequences in a FASTA format
+                  fasta       = ">#{e.entry_id}\n#{e.aaseq.gsub('-','')}"
+                  fasta_file  = bla_dir + "#{e.entry_id}.fa"
+                  fasta_file.open('w') { |f| f.puts fasta }
+
+                  # 2. Run BLAST
+                  blastout = bla_dir + "#{sccs}.xml"
+                  cmd = "/BiO/Install/Blast/bin/blastall -p blastp -i #{fasta_file} -e 1e10000 -d #{blastdb} -m 7 -o #{blastout}"
+                  system cmd
+
+                  $logger.info "BLAST searching against #{na.upcase}-bindnig SCOP family, #{sccs} (#{i+1}/#{tems.size}): done"
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+
+namespace :bench do
+  namespace :rec do
     desc "Test recognition performance of PSI-BLAST for DNA/RNA-binding protein families"
     task :psi do
 
@@ -445,7 +493,7 @@ namespace :bench do
       task :linrna do
 
         seqs    = []
-        scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
+        scop40  = cur_dir + "../data/scop/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
 
         Bio::FlatFile.open(Bio::FastaFormat, scop40) do |ff|
           ff.each do |entry|
@@ -537,7 +585,7 @@ namespace :bench do
       task :affdna do
 
         seqs    = []
-        scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
+        scop40  = cur_dir + "../data/scop/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
 
         Bio::FlatFile.open(Bio::FastaFormat, scop40) do |ff|
           ff.each do |entry|
@@ -630,7 +678,7 @@ namespace :bench do
       task :affrna do
 
         seqs    = []
-        scop40  = cur_dir + "../data/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
+        scop40  = cur_dir + "../data/scop/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
 
         Bio::FlatFile.open(Bio::FastaFormat, scop40) do |ff|
           ff.each do |entry|
