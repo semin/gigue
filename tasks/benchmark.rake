@@ -281,6 +281,69 @@ end
 
 namespace :bench do
   namespace :rec do
+    desc "Parse PSI-BLAST results and create CSV files"
+    task :blares do
+
+      fm = ForkManager.new(8)
+      fm.manage do
+        %w[dna rna].each do |na|
+          bla_dir = cur_dir + "../tmp/rec/bla/#{na}"
+          xmls    = Pathname::glob(bla_dir + "*.xml")
+          xmls.each do |xml|
+            fm.fork do
+              hits  = []
+              rs    = Bio::Blast.reports(File.open(xml))
+              rs.each do |r|
+                r.each do |hit|
+                  if (hit.target_id !~ /^UniRef/)
+                    qry_sunid = hit.query_def
+                    qry_sccs  = sunid_to_sccs[qry_sunid].split('.')
+                    qry_class = qry_sccs[0]
+                    qry_fold  = qry_sccs[0..1].join('.')
+                    qry_sfam  = qry_sccs[0..2].join('.')
+                    qry_fam   = qry_sccs[0..3].join('.')
+
+                    tgt_sid   = hit.target_id.gsub(/^[g|e]/, 'd')
+                    tgt_sunid = sid_to_sunid[tgt_sid]
+                    tgt_sccs  = sid_to_sccs[tgt_sid].split('.')
+                    tgt_class = tgt_sccs[0]
+                    tgt_fold  = tgt_sccs[0..1].join('.')
+                    tgt_sfam  = tgt_sccs[0..2].join('.')
+                    tgt_fam   = tgt_sccs[0..3].join('.')
+
+                    next if qry_class != tgt_class
+
+                    cols = [
+                      qry_sunid, qry_class, qry_fold, qry_sfam, qry_fam,
+                      tgt_sunid, tgt_class, tgt_fold, tgt_sfam, tgt_fam,
+                      hit.bit_score, hit.evalue
+                    ]
+
+                    log_fmt = "%8d %2s %5s %9s %12s %8d %2s %5s %9s %12s %10.3f %g"
+                    $logger.info log_fmt % cols
+                    hits << cols
+                  end
+                end
+              end
+
+              sorted_hits = hits.sort_by { |h| h[-1] }
+              res_file    = bla_dir + "#{xml.basename('.xml')}.csv"
+              res_file.open("w") do |file|
+                sorted_hits.each do |sorted_hit|
+                  file.puts sorted_hit.join(", ")
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+
+namespace :bench do
+  namespace :rec do
     desc "Test recognition performance of BLAST for DNA/RNA-binding protein families"
     task :bla do
 
@@ -312,7 +375,7 @@ namespace :bench do
 
                   # 2. Run BLAST
                   blastout = bla_dir + "#{sccs}.xml"
-                  cmd = "/BiO/Install/Blast/bin/blastall -p blastp -i #{fasta_file} -e 1e10000 -d #{blastdb} -m 7 -o #{blastout}"
+                  cmd = "blastall -p blastp -i #{fasta_file} -e 1e10000 -d #{blastdb} -m 7 -o #{blastout}"
                   system cmd
 
                   $logger.info "BLAST searching against #{na.upcase}-bindnig SCOP family, #{sccs} (#{i+1}/#{tems.size}): done"
