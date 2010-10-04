@@ -281,7 +281,7 @@ end
 
 namespace :bench do
   namespace :rec do
-    desc "Parse PSI-BLAST results and create CSV files"
+    desc "Parse BLAST results and create CSV files"
     task :blares do
 
       fm = ForkManager.new(8)
@@ -374,14 +374,61 @@ namespace :bench do
                   fasta_file.open('w') { |f| f.puts fasta }
 
                   # 2. Run BLAST
-                  blastout = bla_dir + "#{sccs}.xml"
-                  cmd = "blastall -p blastp -i #{fasta_file} -e 1e10000 -d #{blastdb} -m 7 -o #{blastout}"
+                  blastout = bla_dir + "#{e.entry_id}.xml"
+                  cmd = "blastall -p blastp -i #{fasta_file} -e 1e1000000 -d #{blastdb} -m 7 -o #{blastout}"
                   system cmd
-
-                  $logger.info "BLAST searching against #{na.upcase}-bindnig SCOP family, #{sccs} (#{i+1}/#{tems.size}): done"
                 end
               end
             end
+            $logger.info "BLAST searching against #{na.upcase}-bindnig SCOP family, #{sccs} (#{i+1}/#{tems.size}): done"
+          end
+        end
+      end
+    end
+  end
+end
+
+
+namespace :bench do
+  namespace :rec do
+    desc "Test recognition performance of BLAST for DNA/RNA-binding protein families"
+    task :psisgl do
+
+      blastdb = cur_dir + "../data/scop/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
+
+      %w[dna rna].each do |na|
+        psi_dir = cur_dir + "../tmp/rec/psi/#{na}"
+
+        fm = ForkManager.new(8)
+        fm.manage do
+          tems = Pathname::glob(data_dir + "./bipa/scop/rep/#{na}/*/#{na}modsalign.tem")
+          tems.each_with_index do |tem, i|
+            sunid = tem.to_s.match(/(\d+)/)[1]
+            sccs  = sunid_to_sccs[sunid]
+            unless sccs.match(/^[a|b|c|d|e|f|g]/)
+              $logger.warn "Skip #{sccs}, it's not a true SCOP class"
+              next
+            end
+
+            fm.fork do
+              bio_tem = Bio::FlatFile.auto(tem)
+              entries = bio_tem.entries
+              entries.each do |e|
+                if e.definition =~ /^sequence/
+                  # 1. create an input file for sequences in a FASTA format
+                  fasta       = ">#{e.entry_id}\n#{e.aaseq.gsub('-','')}"
+                  fasta_file  = psi_dir + "#{e.entry_id}.fa"
+                  fasta_file.open('w') { |f| f.puts fasta }
+
+                  # 2. Run BLAST
+                  out = psi_dir + "#{e.entry_id}.xml"
+                  cmd = "blastpgp -i #{fasta_file} -e 1e1000000 -d #{blastdb} -j 5 -m 7 -o #{out}"
+                  system cmd
+
+                end
+              end
+            end
+            $logger.info "PSI-BLAST searching against #{na.upcase}-bindnig SCOP family, #{sccs} (#{i+1}/#{tems.size}): done"
           end
         end
       end
@@ -447,6 +494,462 @@ namespace :bench do
               system cmd
 
               $logger.info "PSI-BLAST searching against #{na.upcase}-bindnig SCOP family, #{sccs} (#{i+1}/#{tems.size}): done"
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+
+namespace :bench do
+  namespace :rec do
+    namespace :gig do
+      desc "Test recognition performance of GIGUE with affine gap penalties for DNA-binding protein families"
+      task :locaffdnasgl do
+
+        seqs    = []
+        scop40  = cur_dir + "../data/scop/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
+
+        Bio::FlatFile.open(Bio::FastaFormat, scop40) do |ff|
+          ff.each do |entry|
+            if sid_to_sccs[entry.entry_id.gsub(/^[g|e]/, 'd')].match(/^[a|b|c|d|e|f|g]/)
+              seqs << Sequence.new(entry.aaseq, entry.entry_id.gsub(/^[g|e]/, 'd'), "sequence;#{entry.definition}")
+            else
+              $logger.warn "Skip #{entry.definition}, not a true SCOP class"
+            end
+          end
+        end
+
+        fm = ForkManager.new(8)
+        fm.manage do
+          tems = Pathname::glob(data_dir + "./bipa/scop/rep/dna/*/dnamodsalign.tem")
+          tems.each_with_index do |tem, i|
+            sunid = tem.to_s.match(/(\d+)/)[1]
+            sccs  = sunid_to_sccs[sunid]
+            unless sccs.match(/^[a|b|c|d|e|f|g]/)
+              $logger.warn "Skip #{sccs}, it's not a true SCOP class"
+              next
+            end
+            $logger.info  "Searching against DNA-bindnig SCOP family, #{sccs} (#{i+1}/#{tems.size})"
+
+            bio_tem = Bio::FlatFile.auto(tem)
+            entries = bio_tem.entries
+            entries_hash  = {}
+            entries.each do |entry|
+              if !entries_hash.has_key?(entry.entry_id)
+                entries_hash[entry.entry_id] = {}
+              end
+              entries_hash[entry.entry_id][entry.definition] = entry
+            end
+
+            [ mat_dir + "ulla-dna64-pid60-sigma0.0001-out2.mat",
+              mat_dir + "ulla-dna128-pid60-sigma0.0001-out2.mat"].each do |esst|
+              fm.fork do
+
+                hits  = []
+                env   = esst.to_s.match(/(dna\d+)/)[1]
+
+                entries_hash.keys.each do |entry_id|
+                  ents = entries_hash[entry_id]
+                  joy = ""
+                  ents.values.each do |e|
+                    joy += %Q{>P1;#{e.entry_id}\n#{e.definition}\n#{e.data.gsub('-','').gsub("\n",'')}*\n}
+                  end
+
+                  stp = StructuralProfile::create_from_joy_tem_and_essts(joy, esst)
+                  seqs.each do |seq|
+                    stp_sccs  = sccs.split('.')
+                    stp_class = stp_sccs[0]
+                    stp_fold  = stp_sccs[0..1].join('.')
+                    stp_sfam  = stp_sccs[0..2].join('.')
+                    stp_fam   = stp_sccs[0..3].join('.')
+                    seq_sccs  = sid_to_sccs[seq.code].split('.')
+                    seq_class = seq_sccs[0]
+                    seq_fold  = seq_sccs[0..1].join('.')
+                    seq_sfam  = seq_sccs[0..2].join('.')
+                    seq_fam   = seq_sccs[0..3].join('.')
+
+                    next if stp_class != seq_class
+
+                    psa = ProfileSequenceAligner.new(stp, seq)
+                    begin
+                      gal = psa.local_alignment_affine_gap_cpp
+                    rescue
+                      $logger.debug "Problematic prf:"
+                      $logger.debug ">#{entry_id}"
+                      $logger.debug "Problematic seq:"
+                      $logger.debug ">#{seq.code}"
+                      $logger.debug "#{seq.data}"
+                    end
+
+                    if gal.raw_score < gal.reverse_score
+                      $logger.debug "Skip #{sccs} <=> #{seq.code}, reverse raw score is greater than raw score."
+                      next
+                    end
+
+                    result = [ entry_id, stp.length, stp_class, stp_fold, stp_sfam, stp_fam,
+                      sid_to_sunid[seq.code], seq.code, seq.length, seq_class, seq_fold, seq_sfam, seq_fam,
+                      gal.raw_score, gal.reverse_score, gal.z_score, psa.algorithm.to_s
+                    ]
+
+                    log_fmt = "%8d %5d %2s %5s %9s %12s %8d %-10s %5d %2s %5s %9s %12s %7d %7d %10.7f %10s"
+                    $logger.info log_fmt % result
+                    hits << result
+                  end
+                end
+
+                sorted_hits = hits.sort_by { |h| h[-2] }.reverse
+                res_file    = cur_dir + "../tmp/rec/gig/dna/single_str-single_seq-local-affine-#{sccs}-#{env}.csv"
+                res_file.open("w") do |file|
+                  sorted_hits.each do |sorted_hit|
+                    file.puts sorted_hit.join(", ")
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+
+namespace :bench do
+  namespace :rec do
+    namespace :gig do
+      desc "Test recognition performance of GIGUE with affine gap penalties for RNA-binding protein families"
+      task :locaffrnasgl do
+
+        seqs    = []
+        scop40  = cur_dir + "../data/scop/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
+
+        Bio::FlatFile.open(Bio::FastaFormat, scop40) do |ff|
+          ff.each do |entry|
+            if sid_to_sccs[entry.entry_id.gsub(/^[g|e]/, 'd')].match(/^[a|b|c|d|e|f|g]/)
+              seqs << Sequence.new(entry.aaseq, entry.entry_id.gsub(/^[g|e]/, 'd'), "sequence;#{entry.definition}")
+            else
+              $logger.warn "Skip #{entry.definition}, not a true SCOP class"
+            end
+          end
+        end
+
+        fm = ForkManager.new(8)
+        fm.manage do
+          tems = Pathname::glob(data_dir + "./bipa/scop/rep/rna/*/rnamodsalign.tem")
+          tems.each_with_index do |tem, i|
+            sunid = tem.to_s.match(/(\d+)/)[1]
+            sccs  = sunid_to_sccs[sunid]
+            unless sccs.match(/^[a|b|c|d|e|f|g]/)
+              $logger.warn "Skip #{sccs}, it's not a true SCOP class"
+              next
+            end
+            $logger.info  "Searching against RNA-bindnig SCOP family, #{sccs} (#{i+1}/#{tems.size})"
+
+            bio_tem = Bio::FlatFile.auto(tem)
+            entries = bio_tem.entries
+            entries_hash  = {}
+            entries.each do |entry|
+              if !entries_hash.has_key?(entry.entry_id)
+                entries_hash[entry.entry_id] = {}
+              end
+              entries_hash[entry.entry_id][entry.definition] = entry
+            end
+
+            [ mat_dir + "ulla-rna64-pid60-sigma0.0001-out2.mat",
+              mat_dir + "ulla-rna128-pid60-sigma0.0001-out2.mat"].each do |esst|
+              fm.fork do
+
+                hits  = []
+                env   = esst.to_s.match(/(rna\d+)/)[1]
+
+                entries_hash.keys.each do |entry_id|
+                  ents = entries_hash[entry_id]
+                  joy = ""
+                  ents.values.each do |e|
+                    joy += %Q{>P1;#{e.entry_id}\n#{e.definition}\n#{e.data.gsub('-','').gsub("\n",'')}*\n}
+                  end
+
+                  stp = StructuralProfile::create_from_joy_tem_and_essts(joy, esst)
+                  seqs.each do |seq|
+                    stp_sccs  = sccs.split('.')
+                    stp_class = stp_sccs[0]
+                    stp_fold  = stp_sccs[0..1].join('.')
+                    stp_sfam  = stp_sccs[0..2].join('.')
+                    stp_fam   = stp_sccs[0..3].join('.')
+                    seq_sccs  = sid_to_sccs[seq.code].split('.')
+                    seq_class = seq_sccs[0]
+                    seq_fold  = seq_sccs[0..1].join('.')
+                    seq_sfam  = seq_sccs[0..2].join('.')
+                    seq_fam   = seq_sccs[0..3].join('.')
+
+                    next if stp_class != seq_class
+
+                    psa = ProfileSequenceAligner.new(stp, seq)
+                    begin
+                      gal = psa.local_alignment_affine_gap_cpp
+                    rescue
+                      $logger.debug "Problematic prf:"
+                      $logger.debug ">#{entry_id}"
+                      $logger.debug "Problematic seq:"
+                      $logger.debug ">#{seq.code}"
+                      $logger.debug "#{seq.data}"
+                    end
+
+                    if gal.raw_score < gal.reverse_score
+                      $logger.debug "Skip #{sccs} <=> #{seq.code}, reverse raw score is greater than raw score."
+                      next
+                    end
+
+                    result = [ entry_id, stp.length, stp_class, stp_fold, stp_sfam, stp_fam,
+                      sid_to_sunid[seq.code], seq.code, seq.length, seq_class, seq_fold, seq_sfam, seq_fam,
+                      gal.raw_score, gal.reverse_score, gal.z_score, psa.algorithm.to_s
+                    ]
+
+                    log_fmt = "%8d %5d %2s %5s %9s %12s %8d %-10s %5d %2s %5s %9s %12s %7d %7d %10.7f %10s"
+                    $logger.info log_fmt % result
+                    hits << result
+                  end
+                end
+
+                sorted_hits = hits.sort_by { |h| h[-2] }.reverse
+                res_file    = cur_dir + "../tmp/rec/gig/rna/single_str-single_seq-local-affine-#{sccs}-#{env}.csv"
+                res_file.open("w") do |file|
+                  sorted_hits.each do |sorted_hit|
+                    file.puts sorted_hit.join(", ")
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+
+namespace :bench do
+  namespace :rec do
+    namespace :gig do
+      desc "Test recognition performance of GIGUE with linear gap penalties for RNA-binding protein families"
+      task :loclinrnasgl do
+
+        seqs    = []
+        scop40  = cur_dir + "../data/scop/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
+
+        Bio::FlatFile.open(Bio::FastaFormat, scop40) do |ff|
+          ff.each do |entry|
+            if sid_to_sccs[entry.entry_id.gsub(/^[g|e]/, 'd')].match(/^[a|b|c|d|e|f|g]/)
+              seqs << Sequence.new(entry.aaseq, entry.entry_id.gsub(/^[g|e]/, 'd'), "sequence;#{entry.definition}")
+            else
+              $logger.warn "Skip #{entry.definition}, not a true SCOP class"
+            end
+          end
+        end
+
+        fm = ForkManager.new(8)
+        fm.manage do
+          tems = Pathname::glob(data_dir + "./bipa/scop/rep/rna/*/rnamodsalign.tem")
+          tems.each_with_index do |tem, i|
+            sunid = tem.to_s.match(/(\d+)/)[1]
+            sccs  = sunid_to_sccs[sunid]
+            unless sccs.match(/^[a|b|c|d|e|f|g]/)
+              $logger.warn "Skip #{sccs}, it's not a true SCOP class"
+              next
+            end
+            $logger.info  "Searching against RNA-bindnig SCOP family, #{sccs} (#{i+1}/#{tems.size})"
+
+            bio_tem = Bio::FlatFile.auto(tem)
+            entries = bio_tem.entries
+            entries_hash  = {}
+            entries.each do |entry|
+              if !entries_hash.has_key?(entry.entry_id)
+                entries_hash[entry.entry_id] = {}
+              end
+              entries_hash[entry.entry_id][entry.definition] = entry
+            end
+
+            [ mat_dir + "ulla-rna64-pid90-sigma0.0001-out2.mat",
+              mat_dir + "ulla-rna128-pid90-sigma0.0001-out2.mat"].each do |esst|
+              fm.fork do
+
+                hits  = []
+                env   = esst.to_s.match(/(rna\d+)/)[1]
+
+                entries_hash.keys.each do |entry_id|
+                  ents = entries_hash[entry_id]
+                  joy = ""
+                  ents.values.each do |e|
+                    joy += %Q{>P1;#{e.entry_id}\n#{e.definition}\n#{e.data.gsub('-','').gsub("\n",'')}*\n}
+                  end
+
+                  stp = StructuralProfile::create_from_joy_tem_and_essts(joy, esst)
+                  seqs.each do |seq|
+                    stp_sccs  = sccs.split('.')
+                    stp_class = stp_sccs[0]
+                    stp_fold  = stp_sccs[0..1].join('.')
+                    stp_sfam  = stp_sccs[0..2].join('.')
+                    stp_fam   = stp_sccs[0..3].join('.')
+                    seq_sccs  = sid_to_sccs[seq.code].split('.')
+                    seq_class = seq_sccs[0]
+                    seq_fold  = seq_sccs[0..1].join('.')
+                    seq_sfam  = seq_sccs[0..2].join('.')
+                    seq_fam   = seq_sccs[0..3].join('.')
+
+                    next if stp_class != seq_class
+
+                    psa = ProfileSequenceAligner.new(stp, seq)
+                    begin
+                      gal = psa.local_alignment_linear_gap_cpp
+                    rescue
+                      $logger.debug "Problematic prf:"
+                      $logger.debug ">#{entry_id}"
+                      $logger.debug "Problematic seq:"
+                      $logger.debug ">#{seq.code}"
+                      $logger.debug "#{seq.data}"
+                    end
+
+                    if gal.raw_score < gal.reverse_score
+                      $logger.debug "Skip #{sccs} <=> #{seq.code}, reverse raw score is greater than raw score."
+                      next
+                    end
+
+                    result = [ entry_id, stp.length, stp_class, stp_fold, stp_sfam, stp_fam,
+                      sid_to_sunid[seq.code], seq.code, seq.length, seq_class, seq_fold, seq_sfam, seq_fam,
+                      gal.raw_score, gal.reverse_score, gal.z_score, psa.algorithm.to_s
+                    ]
+
+                    log_fmt = "%8d %5d %2s %5s %9s %12s %8d %-10s %5d %2s %5s %9s %12s %7d %7d %10.7f %10s"
+                    $logger.info log_fmt % result
+                    hits << result
+                  end
+                end
+
+                sorted_hits = hits.sort_by { |h| h[-2] }.reverse
+                res_file    = cur_dir + "../tmp/rec/gig/rna/single_str-single_seq-local-linear-#{sccs}-#{env}.csv"
+                res_file.open("w") do |file|
+                  sorted_hits.each do |sorted_hit|
+                    file.puts sorted_hit.join(", ")
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+
+namespace :bench do
+  namespace :rec do
+    namespace :gig do
+      desc "Test recognition performance of GIGUE with linear gap penalties for DNA-binding protein families"
+      task :loclindnasgl do
+
+        seqs    = []
+        scop40  = cur_dir + "../data/scop/astral-scopdom-seqres-gd-sel-gs-bib-40-1.75.fa"
+
+        Bio::FlatFile.open(Bio::FastaFormat, scop40) do |ff|
+          ff.each do |entry|
+            if sid_to_sccs[entry.entry_id.gsub(/^[g|e]/, 'd')].match(/^[a|b|c|d|e|f|g]/)
+              seqs << Sequence.new(entry.aaseq, entry.entry_id.gsub(/^[g|e]/, 'd'), "sequence;#{entry.definition}")
+            else
+              $logger.warn "Skip #{entry.definition}, not a true SCOP class"
+            end
+          end
+        end
+
+        fm = ForkManager.new(8)
+        fm.manage do
+          tems = Pathname::glob(data_dir + "./bipa/scop/rep/dna/*/dnamodsalign.tem")
+          tems.each_with_index do |tem, i|
+            sunid = tem.to_s.match(/(\d+)/)[1]
+            sccs  = sunid_to_sccs[sunid]
+            unless sccs.match(/^[a|b|c|d|e|f|g]/)
+              $logger.warn "Skip #{sccs}, it's not a true SCOP class"
+              next
+            end
+            $logger.info  "Searching against DNA-bindnig SCOP family, #{sccs} (#{i+1}/#{tems.size})"
+
+            bio_tem = Bio::FlatFile.auto(tem)
+            entries = bio_tem.entries
+            entries_hash  = {}
+            entries.each do |entry|
+              if !entries_hash.has_key?(entry.entry_id)
+                entries_hash[entry.entry_id] = {}
+              end
+              entries_hash[entry.entry_id][entry.definition] = entry
+            end
+
+            [ mat_dir + "ulla-dna64-pid90-sigma0.0001-out2.mat",
+              mat_dir + "ulla-dna128-pid90-sigma0.0001-out2.mat"].each do |esst|
+              fm.fork do
+
+                hits  = []
+                env   = esst.to_s.match(/(dna\d+)/)[1]
+
+                entries_hash.keys.each do |entry_id|
+                  ents = entries_hash[entry_id]
+                  joy = ""
+                  ents.values.each do |e|
+                    joy += %Q{>P1;#{e.entry_id}\n#{e.definition}\n#{e.data.gsub('-','').gsub("\n",'')}*\n}
+                  end
+
+                  stp = StructuralProfile::create_from_joy_tem_and_essts(joy, esst)
+                  seqs.each do |seq|
+                    stp_sccs  = sccs.split('.')
+                    stp_class = stp_sccs[0]
+                    stp_fold  = stp_sccs[0..1].join('.')
+                    stp_sfam  = stp_sccs[0..2].join('.')
+                    stp_fam   = stp_sccs[0..3].join('.')
+                    seq_sccs  = sid_to_sccs[seq.code].split('.')
+                    seq_class = seq_sccs[0]
+                    seq_fold  = seq_sccs[0..1].join('.')
+                    seq_sfam  = seq_sccs[0..2].join('.')
+                    seq_fam   = seq_sccs[0..3].join('.')
+
+                    next if stp_class != seq_class
+
+                    psa = ProfileSequenceAligner.new(stp, seq)
+                    begin
+                      gal = psa.local_alignment_linear_gap_cpp
+                    rescue
+                      $logger.debug "Problematic prf:"
+                      $logger.debug ">#{entry_id}"
+                      $logger.debug "Problematic seq:"
+                      $logger.debug ">#{seq.code}"
+                      $logger.debug "#{seq.data}"
+                    end
+
+                    if gal.raw_score < gal.reverse_score
+                      $logger.debug "Skip #{sccs} <=> #{seq.code}, reverse raw score is greater than raw score."
+                      next
+                    end
+
+                    result = [ entry_id, stp.length, stp_class, stp_fold, stp_sfam, stp_fam,
+                      sid_to_sunid[seq.code], seq.code, seq.length, seq_class, seq_fold, seq_sfam, seq_fam,
+                      gal.raw_score, gal.reverse_score, gal.z_score, psa.algorithm.to_s
+                    ]
+
+                    log_fmt = "%8d %5d %2s %5s %9s %12s %8d %-10s %5d %2s %5s %9s %12s %7d %7d %10.7f %10s"
+                    $logger.info log_fmt % result
+                    hits << result
+                  end
+                end
+
+                sorted_hits = hits.sort_by { |h| h[-2] }.reverse
+                res_file    = cur_dir + "../tmp/rec/gig/dna/single_str-single_seq-local-linear-#{sccs}-#{env}.csv"
+                res_file.open("w") do |file|
+                  sorted_hits.each do |sorted_hit|
+                    file.puts sorted_hit.join(", ")
+                  end
+                end
+              end
             end
           end
         end
