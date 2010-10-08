@@ -25,32 +25,20 @@
       var versionBox = new curvyCorners(settings, document.getElementById("version"));
       versionBox.applyCornersToAll();
     }
-</script>
-<script type="text/javascript">
-
-    var _gaq = _gaq || [];
-    _gaq.push(['_setAccount', 'UA-18995433-1']);
-    _gaq.push(['_trackPageview']);
-
-    (function() {
-     var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-     ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-     var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-     })();
-
-</script>
+  </script>
 </head>
 <body>
 <div id="main">
 
     <h1>GIGUE</h1>
+    <hr />
     <div class="sidebar">
-      <div id="version" class="clickable" onclick='document.location = "http://rubyforge.org/projects/gigue"; return false'>
+      <div id="version" class="clickable" onclick='document.location = "#download"; return false'>
         <p>Get Version</p>
-        <a href="http://rubyforge.org/projects/gigue" class="numbers">0.0.1</a>
+        <a href="#download" class="numbers">0.0.1</a>
       </div>
     </div>
-    <h2>Description</h2>
+<h2 style="vertical-align:middle;">Description</h2>
 <p>&#8216;<span class="caps">GIGUE</span>&#8217; is a program for structure-sequence homology detection using environment-specific substitution tables and structure-dependent gap penalties.</p>
 <h2>Features</h2>
 <ul>
@@ -76,16 +64,17 @@
 <h2>Basic Usage</h2>
 <p>To build a profile,<br />
 <pre><br />
-    ~user $ gigue build blah blah<br />
 </pre></p>
 <h2>Options</h2>
 <pre>
 </pre>
 <h2>Usage</h2>
-<h2>Repository</h2>
-<p><span class="caps">GIGUE</span> is available only upon request. Please contact Semin Lee (semin at cryst.bioc.cam.ac.uk) to obtain the software.</p>
+<h2 id="download">Download</h2>
+<p><span class="caps">GIGUE</span> is available only upon request. Please contact Semin Lee (semin at cryst.bioc.cam.ac.uk) to obtain the software.<br />
+</p>
+    <hr />
     <p class="coda">
-      <a href="FIXME email">FIXME full name</a>, 8th October 2010<br>
+      Semin Lee, 8th October 2010<br>
       Theme extended from <a href="http://rb2js.rubyforge.org/">Paul Battley</a>
     </p>
 </div>
