@@ -5,7 +5,7 @@ require 'fileutils'
 require './lib/gigue'
 
 Hoe.plugin :newgem
-# Hoe.plugin :website
+Hoe.plugin :website
 # Hoe.plugin :cucumberfeatures
 
 # Generate all the Rake tasks
@@ -14,7 +14,9 @@ $hoe = Hoe.spec 'gigue' do
   self.developer 'Semin Lee', 'seminlee@gmail.com'
   self.post_install_message = 'PostInstall.txt' # TODO remove if post-install message not required
   self.rubyforge_name       = self.name # TODO this is default value
-  self.extra_deps         = [['narray','>= 0.5.9.7']]
+  self.extra_deps         = [ ['narray','>= 0.5.9.7'],
+                              ['RubyInline', '>=3.8.5'],
+                              ['bio', '>=1.4.0']]
 end
 
 require 'newgem/tasks'

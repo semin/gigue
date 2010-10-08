@@ -1,0 +1,47 @@
+h1. GIGUE
+
+h2. Description
+
+'GIGUE' is a program for structure-sequence homology detection using environment-specific substitution tables and structure-dependent gap penalties.
+
+h2. Features
+
+* Scoring based on ESSTs and structure-dependent gap penalties
+* Dynamic selection of alignment algorithms (Global & Glocal)
+* Ruby APIs
+
+h2. Requirements
+
+* ruby 1.9.0 or above ("http://www.ruby-lang.org":http://www.ruby-lang.org)
+* rubygems 1.2.0 or above ("http://rubygems.org/":http://rubygems.org/)
+
+Following RubyGems will be automatically installed if you have rubygems installed on your machine
+
+* "narray":http://narray.rubyforge.org
+* "bio":http://bioruby.open-bio.org
+* "RubyInline":http://www.zenspider.com/ZSS/Products/RubyInline/
+
+h2. Installation
+
+<pre>
+    ~user $ sudo gem install gigue-<VERSION>.gem
+</pre>
+
+h2. Basic Usage
+
+To build a profile,
+<pre>
+    ~user $ gigue build blah blah
+</pre>
+
+h2. Options
+
+<pre>
+</pre>
+
+
+h2. Usage
+
+h2. Repository
+
+GIGUE is available only upon request. Please contact Semin Lee (semin at cryst.bioc.cam.ac.uk) to obtain the software.
