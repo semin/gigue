@@ -1,5 +1,4 @@
 module Enumerable
-
   def map_with_index
     result = []
     self.each_with_index do |elt, idx|
@@ -7,6 +6,5 @@ module Enumerable
     end
     result
   end
-
 end
 
