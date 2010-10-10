@@ -18,7 +18,7 @@ GIGUE commands are:
 
 See 'gigue COMMAND [--help|-h]' for more information on a specific command.
         BANNER
-        opts.on('-h', '--help', 'show this help message.') {
+        opts.on('-h', '--help', 'show this help message') {
           stdout.puts opts.banner
           exit
         }
@@ -62,7 +62,7 @@ Options:
           opts.on('-o', '--output FILENAME', String, 'set an output profile file') { |o|
             $options[:output] = o
           }
-          opts.on('-h', '--help', 'show this help message.') {
+          opts.on('-h', '--help', 'show this help message') {
             stdout.puts opts
             exit
           }
