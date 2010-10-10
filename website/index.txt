@@ -1,6 +1,6 @@
 h1. GIGUE
----
 
+---
 h2. Description
 
 'GIGUE' is a program for structure-sequence homology detection using environment-specific substitution tables and structure-dependent gap penalties.
@@ -8,7 +8,7 @@ h2. Description
 h2. Features
 
 * Scoring based on ESSTs and structure-dependent gap penalties
-* Dynamic selection of alignment algorithms (Global & Glocal)
+* Multiple alignment algorithms are available (Global, Glocal, and Local)
 * Ruby APIs
 
 h2. Requirements
