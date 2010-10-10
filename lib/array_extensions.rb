@@ -1,5 +1,4 @@
 module ArrayExtensions
-
   unless method_defined?(:to_hash)
     def to_hash(other)
       Hash[*self.zip(other).flatten]
@@ -15,7 +14,6 @@ module ArrayExtensions
       end
     end
   end
-
 end
 
 Array.send :include, ArrayExtensions
