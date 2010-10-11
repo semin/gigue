@@ -31,11 +31,10 @@ require_relative 'gigue/multiple_sequence_alignment'
 require_relative 'gigue/multiple_sequence_alignment_column'
 require_relative 'gigue/environment_type_class_definition'
 
-$logger = Logger.new(STDOUT)
-$logger.level = Logger::DEBUG
+$logger = Logger.new(STDERR)
+$logger.level = Logger::ERROR
 
 module Gigue
   VERSION = '0.0.1'
   NONE, UP, LEFT, DIAG = 0, 1, 2, 3
-  #AMINO_ACIDS = 'ACDEFGHIKLMNPQRSTVWYJ'
 end

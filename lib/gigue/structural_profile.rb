@@ -171,19 +171,19 @@ module Gigue
       @depth      = @sequences.size
     end
 
-    def purge
+    def purge(cutoff=0.5)
       pss = []
       @positions.each do |ps|
         w = 0
         ps.probe.split('').each_with_index do |aa, si|
           w += @sequences[si].weight if aa == '-'
         end
-        pss << ps if w < 0.5
+        pss << ps if w < cutoff
       end
       self.class.new(pss, @opts)
     end
 
-    def to_fug(os = STDOUT)
+    def to_gig(os = STDOUT)
       os = File.open(os, 'w') if os.is_a? String
       os.puts "%-30s %-s" % ['Command:', "gigue build -t #{@joytem.file} -s #{@essts.file}"]
       os.puts
@@ -194,7 +194,7 @@ module Gigue
       os.puts "%-30s %-d"     % ['Enhance_Div:', 0] # ???
       os.puts
       if    @opts[:weighting] == :va
-        os.puts "%-30s %-5d %s" % ['Weighting:', 2, 'VAWeight -- Vingon and Argo weight']
+        os.puts "%-30s %-5d %s" % ['Weighting:', 2, 'VAWeight -- Vingron and Argo weight']
       elsif @opts[:weighting] == :blosum
         os.puts "%-30s %-5d %s" % ['Weighting:', 1, 'BlosumWeight -- weighting scheme based on single linkage clustering']
       elsif @opts[:weighting] == :equal

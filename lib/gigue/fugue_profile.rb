@@ -49,7 +49,7 @@ module Gigue
           colnames      = $1.split('/')
           @aa_colnames  = colnames[0].strip.split(/\s+/)
           @gap_colnames = colnames[1].strip.split(/\s+/)
-          @env_colnames = colnames[2].strip.split(/\s+/)
+          @env_colnames = colnames[2].strip.split(/\s+/) if colnames.size > 2
         elsif line =~ /^START/
           parse_tag = :profile
         elsif line =~ /^THEEND/
@@ -59,12 +59,12 @@ module Gigue
           probe     = cols[0]
           mat_score = cols[1,@aa_colnames.size].map { |s| Integer(s) }
           gap_score = cols[1+@aa_colnames.size,@gap_colnames.size].map { |s| Integer(s) }
-          env_score = cols[1+@aa_colnames.size+@gap_colnames.size,@env_colnames.size].map { |s| Integer(s) }
+          env_score = cols[1+@aa_colnames.size+@gap_colnames.size,@env_colnames.size].map { |s| Integer(s) } if @env_colnames
           @positions << FugueProfilePosition.new(
             probe,
             Hash[*@aa_colnames.zip(mat_score).flatten],
             Hash[*@gap_colnames.zip(gap_score).flatten],
-            Hash[*@env_colnames.zip(env_score).flatten]
+            (Hash[*@env_colnames.zip(env_score).flatten] if @env_colnames)
           )
           @sequences.each_with_index { |s, i| s.data += probe[i] }
         end
