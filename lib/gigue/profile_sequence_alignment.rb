@@ -185,18 +185,18 @@ module Gigue
 
     def to_flatfile(options={})
       opts = {
-        :os     => STDOUT,
-        :type   => :pir,
+        :out    => STDOUT,
+        :format => :pir,
         :width  => 70
       }.merge!(options)
 
-      out = opts[:os].is_a?(String) ? File.open(opts[:os], 'w') : opts[:os]
+      out = opts[:out].is_a?(String) ? File.open(opts[:out], 'w') : opts[:out]
 
       # 1. print aligned structural profile sequences
       @structural_profile.sequences.each_with_index do |pseq, psi|
         out.puts ">#{pseq.code}"
-        out.puts "structure" if opts[:type] == :pir
-        out.puts @aligned_structural_profile_positions.map_with_index { |p, pi|
+        out.puts "structure" if opts[:format] == :pir
+        out.puts @aligned_structural_profile_positions.map.with_index { |p, pi|
           ((p == '-' ? '-' : (p.probe[psi] == 'J' ? 'C' : p.probe[psi])) +
            (pi > 0 && (pi+1) % opts[:width] == 0 ? "\n" : ''))
         }.join('')
@@ -204,8 +204,8 @@ module Gigue
 
       # 2. print aligned query sequence
       out.puts ">#{@sequence.code}"
-      out.puts "sequence" if opts[:type] == :pir
-      out.puts @aligned_amino_acids.map_with_index { |a, ai|
+      out.puts "sequence" if opts[:format] == :pir
+      out.puts @aligned_amino_acids.map.with_index { |a, ai|
         a + (ai > 0 && (ai+1) % opts[:width] == 0 ? "\n" : '')
       }.join('')
 

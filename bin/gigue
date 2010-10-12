@@ -4,7 +4,7 @@
 #  Copyright (c) 2010. All rights reserved.
 
 require 'rubygems'
-require File.expand_path(File.dirname(__FILE__) + "/../lib/gigue")
-require "gigue/cli"
+require_relative "../lib/gigue"
+require_relative "../lib/gigue/cli"
 
 Gigue::CLI.execute(STDOUT, ARGV)

@@ -6,21 +6,11 @@ module Gigue
     def initialize(prf, seq, algo=nil)
       @structural_profile = prf
       @sequence           = seq
-      str_seq_ratio       = prf.length / Float(seq.length)
-      if algo.nil?
-        if (str_seq_ratio > 1.5)
-          @algorithm = :glolocstr
-        elsif (str_seq_ratio < 0.6667)
-          @algorithm = :glolocseq
-        else
-          @algorithm = :global
-        end
-      else
-        @algorithm = algo
-      end
+      @str_seq_ratio      = prf.length / Float(seq.length)
     end
 
     def local_alignment_linear_gap(options={})
+      @algorithm = :local
       begin
         local_alignment_linear_gap_cpp(options)
       rescue
@@ -29,6 +19,7 @@ module Gigue
     end
 
     def local_alignment_affine_gap
+      @algorithm = :local
       begin
         local_alignment_affine_gap_cpp
       rescue
@@ -37,6 +28,10 @@ module Gigue
     end
 
     def global_alignment_linear_gap
+      if    (@str_seq_ratio > 1.5)     then @algorithm = :glolocstr
+      elsif (@str_seq_ratio < 0.6667)  then @algorithm = :glolocseq
+      else @algorithm = :global
+      end
       begin
         global_alignment_linear_gap_cpp(options={})
       rescue
@@ -45,6 +40,10 @@ module Gigue
     end
 
     def global_alignment_affine_gap
+      if    (@str_seq_ratio > 1.5)     then @algorithm = :glolocstr
+      elsif (@str_seq_ratio < 0.6667)  then @algorithm = :glolocseq
+      else @algorithm = :global
+      end
       begin
         global_alignment_affine_gap_cpp
       rescue
@@ -170,7 +169,7 @@ module Gigue
           args[4] = LONG2NUM(max_m);
           args[5] = LONG2NUM(max_n);
 
-          return rb_class_new_instance(6, args, rb_path2class("ProfileSequenceLocalAlignmentLinearGap"));
+          return rb_class_new_instance(6, args, rb_path2class("Gigue::ProfileSequenceLocalAlignmentLinearGap"));
         }
       EOCPP
     end
@@ -516,7 +515,7 @@ module Gigue
           args[11]  = LONG2NUM(max_m);
           args[12]  = LONG2NUM(max_n);
 
-          return rb_class_new_instance(13, args, rb_path2class("ProfileSequenceLocalAlignmentAffineGap"));
+          return rb_class_new_instance(13, args, rb_path2class("Gigue::ProfileSequenceLocalAlignmentAffineGap"));
         }
       }
     end
@@ -787,7 +786,7 @@ module Gigue
           args[2] = score;
           args[3] = point;
 
-          return rb_class_new_instance(4, args, rb_path2class("ProfileSequenceGlobalAlignmentLinearGap"));
+          return rb_class_new_instance(4, args, rb_path2class("Gigue::ProfileSequenceGlobalAlignmentLinearGap"));
         }
       EOCPP
     end
@@ -1071,7 +1070,7 @@ module Gigue
           args[9]   = ins_point;
           args[10]  = ins_jump;
 
-          return rb_class_new_instance(11, args, rb_path2class("ProfileSequenceGlobalAlignmentAffineGap"));
+          return rb_class_new_instance(11, args, rb_path2class("Gigue::ProfileSequenceGlobalAlignmentAffineGap"));
         }
       }
     end

@@ -1,31 +1,23 @@
 = gigue
 
-* http://github.com/semin/gigue
+* http://www-cyrst.bioc.cam.ac.uk/gigue
 
 == DESCRIPTION:
 
-A rewrite of FUGUE
+A structure-sequence homology detection program using environmental-specific substitution tables and structure-dependant gap penalties
 
 == FEATURES/PROBLEMS:
 
-* New scoring schemes
-* Profile enrichment with simulated evolution
-* ...
+* 
 
 == SYNOPSIS:
 
-  Coming soon...
-
 == REQUIREMENTS:
 
-* ruby 1.9.1 or above (http://www.ruby-lang.org)
+* ruby 1.9.2 or above (http://www.ruby-lang.org)
 * rubygems 1.3.7 or above (http://rubygems.org)
 
 == INSTALL:
 
-    ~user $ sudo gem install gigue
+    ~user $ sudo gem install gigue-<VERSION>.gem
 
-== LICENSE:
-
-http://i.creativecommons.org/l/by-nc/3.0/88x31.png
-This work is licensed under a {Creative Commons Attribution-NonCommercial 3.0 Unported License}[http://creativecommons.org/licenses/by-nc/3.0/].

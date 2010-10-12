@@ -159,10 +159,11 @@ module Gigue
         :sequences => sequences,
       }
       self.new(positions, opts.merge!(add_opts))
+      #self.new(positions, add_opts.merge!(opts))
     end
 
     def initialize(pss, options={})
-      @opts       = {}.merge!(options)
+      @opts       = options
       @positions  = pss
       @joytem     = @opts[:joytem]
       @essts      = @opts[:essts]

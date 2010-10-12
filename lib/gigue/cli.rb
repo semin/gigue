@@ -1,5 +1,3 @@
-require 'optparse'
-
 module Gigue
   class CLI
 
@@ -7,6 +5,7 @@ module Gigue
       # default options
       $options = {
         :weighting  => :va,
+        :processes  => 1,
         :purge      => 0.5
       }
 
@@ -50,9 +49,9 @@ Options:
           }
           opts.on('-w', '--weighting INTEGER', Integer,
                   'set weighting scheme',
-                  '0      EqualWeighting  -- weighting each sequence equally',
-                  '1      BlosumWeighting -- weighting scheme based on single linkage clustering',
-                  '2      VAWeighting     -- Vingron and Argos weighting (default)') { |o|
+                  '0    EqualWeighting  -- weighting each sequence equally',
+                  '1    BlosumWeighting -- weighting scheme based on single linkage clustering',
+                  '2    VAWeighting     -- Vingron and Argos weighting (default)') { |o|
             $options[:weighting] = case o
                                    when 0 then :equal
                                    when 1 then :blosum
@@ -69,10 +68,10 @@ Options:
           }
           opts.on('-v', '--verbose INTEGER', Integer,
                   'show detailed console output',
-                  '0      Error level (default)',
-                  '1      Warning level',
-                  '2      Information level',
-                  '3      Debugging level') { |o|
+                  '0    Error level (default)',
+                  '1    Warning level',
+                  '2    Information level',
+                  '3    Debugging level') { |o|
             $options[:verbose] = case o
                                  when 0 then Logger::ERROR
                                  when 1 then Logger::WARN
@@ -104,14 +103,17 @@ Options:
           opts.on('-s', '--sequence FILENAME', String, 'set query sequence(s)') { |o|
             $options[:sequence] = o
           }
+          opts.on('-o', '--output FILENAME', String, 'set output file name (default: STDOUT)') { |o|
+            $options[:output] = o
+          }
           opts.on('-t', '--toprank INTEGER', Integer, 'output scoring information about top N HITs') { |o|
             $options[:toprank] = o
           }
           opts.on('-z', '--zcutoff FLOAT', Float, 'output scoring information about HITs with Z-scores greater than a cutoff provided') { |o|
             $options[:zcutoff] = o
           }
-          opts.on('-o', '--output FILENAME', String, 'set output file name (default: STDOUT)') { |o|
-            $options[:output] = o
+          opts.on('-c', '--processes INTEGER', Integer, 'set number of processes to use (default: 1)') { |o|
+            $options[:processes] = o
           }
           #opts.on('-r', '--purge FLOAT', Float, 'purge gap rich columns in a GIGUE profile (default: 0.5)') {
             #$options[:purge] = o
@@ -156,8 +158,8 @@ Options:
           opts.on('-a', '--alignment FILENAME', String, 'set query alignment') { |o|
             $options[:alignment] = o
           }
-          opts.on('-n', '--no-zscore', 'do NOT calculate Z-score') {
-            $options[:noz] = true
+          opts.on('-o', '--output FILENAME', String, 'set output file name (default: STDOUT)') { |o|
+            $options[:output] = o
           }
           opts.on('-v', '--verbose INTEGER', Integer,
                   'show detailed console output',
@@ -215,10 +217,12 @@ Options:
           STDERR.puts subopts['build']
           exit
         end
+
         if $options[:joytem].nil?
           STDERR.puts "error: JOY template file must be provided (use 'gigue build -h' for help)"
           exit
         end
+
         if $options[:essts].nil?
           STDERR.puts "error: ESST file must be provided (use 'gigue build -h' for help)"
           exit
@@ -230,10 +234,12 @@ Options:
           STDERR.puts subopts['search']
           exit
         end
+
         if $options[:profile].nil?
           STDERR.puts "error: GIGUE profile must be provided (use 'gigue search -h' for help)"
           exit
         end
+
         if $options[:sequence].nil?
           STDERR.puts "error: sequence file must be provided (use 'gigue search -h' for help)"
           exit
@@ -242,19 +248,21 @@ Options:
         search_profile($options[:profile], $options[:sequence], $options[:output])
       when 'align'
         if $options[:profile].nil? && $options[:sequence].nil?
-          STDERR.puts subopts['search']
-          exit
-        end
-        if $options[:profile].nil?
-          STDERR.puts "error: GIGUE profile must be provided (use 'gigue search -h' for help)"
-          exit
-        end
-        if $options[:sequence].nil?
-          STDERR.puts "error: sequence file must be provided (use 'gigue search -h' for help)"
+          STDERR.puts subopts['align']
           exit
         end
 
-        align_profile($options[:profile], $options[:sequence])
+        if $options[:profile].nil?
+          STDERR.puts "error: GIGUE profile must be provided (use 'gigue align -h' for help)"
+          exit
+        end
+
+        if $options[:sequence].nil?
+          STDERR.puts "error: sequence file must be provided (use 'gigue align -h' for help)"
+          exit
+        end
+
+        align_profile($options[:profile], $options[:sequence], $options[:output])
       end
     end
 
@@ -271,9 +279,8 @@ Options:
         exit
       end
 
-      stem  = File.basename(tem, File.extname(tem))
-      prf   = StructuralProfile.create_from_joy_tem_and_essts(tem, essts, :weighting => wgt);
-      out   = out.nil? ? STDOUT : out
+      prf = StructuralProfile.create_from_joy_tem_and_essts(tem, essts, :weighting => wgt);
+      out = out.nil? ? STDOUT : out
       prf.to_gig(out)
     end
 
@@ -290,34 +297,53 @@ Options:
         exit
       end
 
-      stem  = File.basename(prf, File.extname(prf))
+      stem  = File.basename(prf)
       prf   = FugueProfile.new(prf)
       ff    = Bio::FlatFile.auto(db)
-      out   = out.nil? ? STDOUT : File.open(out, 'w')
-      hits  = []
 
-      ff.entries.each do |ent|
+      hits = Parallel.map(ff.entries, :in_processes => $options[:processes]) do |ent|
         seq   = Sequence.new(ent.aaseq, ent.entry_id, ent.definition)
         psa   = ProfileSequenceAligner.new(prf, seq)
-        ali   = psa.global_alignment_affine_gap_cpp
-        cols  = [stem, prf.length, seq.code, seq.length, ali.raw_score, ali.reverse_score, ali.z_score, ali.algorithm.to_s]
-        hits  << cols
+        ali   = psa.global_alignment_affine_gap
+        cols  = [stem, prf.length, seq.code, seq.length, ali.raw_score, ali.reverse_score, ali.calculate_z_score(75)]
       end
 
-      shits = hits.sort_by { |h| h[-2] }.reverse
+      shits = hits.sort_by { |h| h[-1] }.reverse
       out   = out.nil? ? STDOUT : File.open(out, 'w')
-      hdr   = "%10s %5s %-10s %5s %7s %7s %10s %10s" %
-                %w[Prof ProfLen Seq SeqLen RawScore RevScore Z-score Algo]
+      hdr   = "#%-15s %10s  %-15s %10s %10s %10s %10s" % %w[Prof ProfLen Seq SeqLen RawScore RevScore Z-score]
+
       out.puts hdr
+
       shits.each do |h|
-        hit_fmt = "%10s %5d %10s %5d %-7d %-7d %-10.7f %10s"
+        hit_fmt = " %-15s %10d  %-15s %10d %10d %10d %10.3f"
         out.puts hit_fmt % h
       end
+
       out.close if out.is_a? File
     end
 
-    def self.align_profile(prf, seq)
-      $logger.debug "Aligning #{prf} against #{seq}"
+    def self.align_profile(prf, db, out)
+      $logger.debug "Aligning #{prf} against #{db}"
+
+      unless File.exist? prf
+        STDERR.puts "error: cannot find GIGUE profile, #{prf}"
+        exit
+      end
+
+      unless File.exist? db
+        STDERR.puts "error: cannot find sequence file, #{db}"
+        exit
+      end
+
+      stem  = File.basename(prf)
+      prf   = FugueProfile.new(prf)
+      ent   = Bio::FlatFile.auto(db).next_entry
+      seq   = Sequence.new(ent.aaseq.to_s, ent.entry_id, ent.definition)
+      psa   = ProfileSequenceAligner.new(prf, seq)
+      ali   = psa.global_alignment_affine_gap
+      out   = out.nil? ? STDOUT : File.open(out, 'w')
+
+      ali.to_flatfile(:out => out)
     end
 
   end

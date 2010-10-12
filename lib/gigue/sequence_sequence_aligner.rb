@@ -165,7 +165,7 @@ module Gigue
           args[4] = LONG2NUM(max_m);
           args[5] = LONG2NUM(max_n);
 
-          return rb_class_new_instance(6, args, rb_path2class("SequenceSequenceLocalAlignmentLinearGap"));
+          return rb_class_new_instance(6, args, rb_path2class("Gigue::SequenceSequenceLocalAlignmentLinearGap"));
         }
       EOCPP
     end
@@ -509,7 +509,7 @@ module Gigue
           args[11]  = LONG2NUM(max_m);
           args[12]  = LONG2NUM(max_n);
 
-          return rb_class_new_instance(13, args, rb_path2class("SequenceSequenceLocalAlignmentAffineGap"));
+          return rb_class_new_instance(13, args, rb_path2class("Gigue::SequenceSequenceLocalAlignmentAffineGap"));
         }
       }
     end
@@ -761,7 +761,7 @@ module Gigue
           args[2] = score;
           args[3] = point;
 
-          return rb_class_new_instance(4, args, rb_path2class("SequenceSequenceGlobalAlignmentLinearGap"));
+          return rb_class_new_instance(4, args, rb_path2class("Gigue::SequenceSequenceGlobalAlignmentLinearGap"));
         }
       EOCPP
     end
@@ -1003,7 +1003,7 @@ module Gigue
           args[9]   = ins_point;
           args[10]  = ins_jump;
 
-          return rb_class_new_instance(11, args, rb_path2class("SequenceSequenceGlobalAlignmentAffineGap"));
+          return rb_class_new_instance(11, args, rb_path2class("Gigue::SequenceSequenceGlobalAlignmentAffineGap"));
         }
       }
     end

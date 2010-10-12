@@ -4,38 +4,6 @@ include Gigue
 
 $logger.level = Logger::INFO
 
-max_fork  = 6
-cur_dir   = Pathname.new(__FILE__).dirname.realpath
-tmp_dir   = cur_dir + "../tmp"
-ali_dir   = tmp_dir + "ali"
-data_dir  = cur_dir + "../data"
-mat_dir   = data_dir + "mats"
-list_dir  = mat_dir + "lists"
-dna_tems  = Pathname::glob(data_dir + "./bipa/scop/rep/dna/*/dnamodsalign.tem")
-rna_tems  = Pathname::glob(data_dir + "./bipa/scop/rep/rna/*/rnamodsalign.tem")
-envs      = [64, 128]
-pids      = (40..90).step(10)
-sigmas    = [0.0001, 0.001, 0.01, 0.1, 3, 5]
-
-# load SCOP description file
-sunid_to_sccs = {}
-sid_to_sccs   = {}
-sid_to_sunid  = {}
-scop_des_file = data_dir + "scop/dir.des.scop.txt_1.75"
-
-IO.foreach(scop_des_file) do |line|
-  line.chomp!
-  if line =~ /^#/
-    next
-  elsif (cols = line.split("\t")).size == 5
-    sunid_to_sccs[cols[0]]  = cols[2]
-    sid_to_sccs[cols[3]]    = cols[2] if cols[1] == "px"
-    sid_to_sunid[cols[3]]   = cols[0] if cols[1] == "px"
-  else
-    warn "?: #{line}"
-  end
-end
-
 def match_positions(aas1, aas2)
   len1 = aas1.length
   len2 = aas2.length
@@ -67,6 +35,39 @@ end
 
 
 namespace :bench do
+
+  max_fork  = 6
+  cur_dir   = Pathname.new(__FILE__).dirname.realpath
+  tmp_dir   = cur_dir + "../tmp"
+  ali_dir   = tmp_dir + "ali"
+  data_dir  = cur_dir + "../data"
+  mat_dir   = data_dir + "mats"
+  list_dir  = mat_dir + "lists"
+  dna_tems  = Pathname::glob(data_dir + "./bipa/scop/rep/dna/*/dnamodsalign.tem")
+  rna_tems  = Pathname::glob(data_dir + "./bipa/scop/rep/rna/*/rnamodsalign.tem")
+  envs      = [64, 128]
+  pids      = (40..90).step(10)
+  sigmas    = [0.0001, 0.001, 0.01, 0.1, 3, 5]
+
+  # load SCOP description file
+  sunid_to_sccs = {}
+  sid_to_sccs   = {}
+  sid_to_sunid  = {}
+  scop_des_file = data_dir + "scop/dir.des.scop.txt_1.75"
+
+  IO.foreach(scop_des_file) do |line|
+    line.chomp!
+    if line =~ /^#/
+      next
+    elsif (cols = line.split("\t")).size == 5
+      sunid_to_sccs[cols[0]]  = cols[2]
+      sid_to_sccs[cols[3]]    = cols[2] if cols[1] == "px"
+      sid_to_sunid[cols[3]]   = cols[0] if cols[1] == "px"
+    else
+      warn "?: #{line}"
+    end
+  end
+
   namespace :ali do
     desc "Test alignment accuracy of Needleman-Wunsch algorithm using BLOSUM62 for DNA/RNA-bindnig protein families"
     task :nw do
