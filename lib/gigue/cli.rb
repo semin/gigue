@@ -4,8 +4,9 @@ module Gigue
     def self.execute(stdout, arguments=[])
       # default options
       $options = {
+        :algorithm  => :auto,
         :weighting  => :va,
-        :processes  => 1,
+        :process    => 1,
         :purge      => 0.5
       }
 
@@ -61,7 +62,6 @@ Options:
                                      exit
                                    end
 
-            puts $options[:weighting].to_s
           }
           opts.on('-o', '--output FILENAME', String, 'set an output profile file (default: STDOUT)') { |o|
             $options[:output] = o
@@ -109,15 +109,31 @@ Options:
           opts.on('-t', '--toprank INTEGER', Integer, 'output scoring information about top N HITs') { |o|
             $options[:toprank] = o
           }
-          opts.on('-z', '--zcutoff FLOAT', Float, 'output scoring information about HITs with Z-scores greater than a cutoff provided') { |o|
+          opts.on('-z', '--zcutoff FLOAT', Float, 'output scoring information about HITs with Z-scores > cutoff') { |o|
             $options[:zcutoff] = o
           }
-          opts.on('-c', '--processes INTEGER', Integer, 'set number of processes to use (default: 1)') { |o|
-            $options[:processes] = o
+          opts.on('-c', '--process INTEGER', Integer, 'set number of processes to use (default: 1)') { |o|
+            $options[:process] = o
           }
           #opts.on('-r', '--purge FLOAT', Float, 'purge gap rich columns in a GIGUE profile (default: 0.5)') {
             #$options[:purge] = o
           #}
+          opts.on('-a', '--algorithm INTEGER', Integer,
+                  'set alignment algorithm',
+                  '0      Auto (Global/Glocal) (default)',
+                  '1      Global',
+                  '2      Glocal',
+                  '3      Local') { |o|
+            $options[:algorithm] = case o
+                                   when 0 then :auto
+                                   when 1 then :global
+                                   when 2 then :glocal
+                                   when 3 then :local
+                                   else
+                                   STDERR.puts "error: [--algorithm|-a] #{o} is not supported (use 'gigue search -h' for help)"
+                                   exit
+                                 end
+          }
           opts.on('-v', '--verbose INTEGER', Integer,
                   'show detailed console output',
                   '0      Error level (default)',
@@ -130,7 +146,7 @@ Options:
                                  when 2 then Logger::INFO
                                  when 3 then Logger::DEBUG
                                  else
-                                   STDERR.puts "error: [--verbose|-v] #{o} is not supported (use 'gigue build -h' for help)"
+                                   STDERR.puts "error: [--verbose|-v] #{o} is not supported (use 'gigue search -h' for help)"
                                    exit
                                  end
             $logger.level = $options[:verbose]
@@ -160,6 +176,22 @@ Options:
           }
           opts.on('-o', '--output FILENAME', String, 'set output file name (default: STDOUT)') { |o|
             $options[:output] = o
+          }
+          opts.on('-a', '--algorithm INTEGER', Integer,
+                  'set alignment algorithm',
+                  '0      Auto (Global/Glocal) (default)',
+                  '1      Global',
+                  '2      Glocal',
+                  '3      Local') { |o|
+            $options[:algorithm] = case o
+                                   when 0 then :auto
+                                   when 1 then :global
+                                   when 2 then :glocal
+                                   when 3 then :local
+                                   else
+                                   STDERR.puts "error: [--algorithm|-a] #{o} is not supported (use 'gigue search -h' for help)"
+                                   exit
+                                 end
           }
           opts.on('-v', '--verbose INTEGER', Integer,
                   'show detailed console output',
@@ -301,16 +333,20 @@ Options:
       prf   = FugueProfile.new(prf)
       ff    = Bio::FlatFile.auto(db)
 
-      hits = Parallel.map(ff.entries, :in_processes => $options[:processes]) do |ent|
+      hits = Parallel.map(ff.entries, :in_processes => $options[:process]) do |ent|
         seq   = Sequence.new(ent.aaseq, ent.entry_id, ent.definition)
         psa   = ProfileSequenceAligner.new(prf, seq)
-        ali   = psa.global_alignment_affine_gap
-        cols  = [stem, prf.length, seq.code, seq.length, ali.raw_score, ali.reverse_score, ali.calculate_z_score(75)]
+        ali   = psa.local_alignment_affine_gap
+        cols  = [
+          stem, prf.length, seq.code, seq.length,
+          ali.raw_score, ali.reverse_score, ali.calculate_z_score(75)
+        ]
       end
 
       shits = hits.sort_by { |h| h[-1] }.reverse
       out   = out.nil? ? STDOUT : File.open(out, 'w')
-      hdr   = "#%-15s %10s  %-15s %10s %10s %10s %10s" % %w[Prof ProfLen Seq SeqLen RawScore RevScore Z-score]
+      hdr   = "#%-15s %10s  %-15s %10s %10s %10s %10s" %
+                %w[Prof ProfLen Seq SeqLen RawScore RevScore Z-score]
 
       out.puts hdr
 

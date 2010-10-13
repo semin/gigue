@@ -1,16 +1,10 @@
-= gigue
+= GIGUE
 
-* http://www-cyrst.bioc.cam.ac.uk/gigue
+* http://www-cryst.bioc.cam.ac.uk/gigue
 
 == DESCRIPTION:
 
 A structure-sequence homology detection program using environmental-specific substitution tables and structure-dependant gap penalties
-
-== FEATURES/PROBLEMS:
-
-* 
-
-== SYNOPSIS:
 
 == REQUIREMENTS:
 
