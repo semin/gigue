@@ -1,5 +1,6 @@
 doc
 data
 tmp
+.yardoc
 *.swp
 *.log
