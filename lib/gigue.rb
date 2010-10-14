@@ -1,8 +1,8 @@
 $:.unshift(File.dirname(__FILE__)) unless $:.include?(File.dirname(__FILE__)) || $:.include?(File.expand_path(File.dirname(__FILE__)))
 
 require 'bio'
-require 'narray'
 require 'logger'
+require 'narray'
 require 'inline'
 require 'ostruct'
 require 'pathname'
@@ -34,7 +34,7 @@ require_relative 'gigue/environment_type_class_definition'
 module Gigue
   # logger setting
   $logger = Logger.new(STDERR)
-  $logger.level = options[:verbose]
+  $logger.level = Logger::ERROR
 
   # global constants
   VERSION = '0.0.1'
