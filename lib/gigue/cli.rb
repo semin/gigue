@@ -12,10 +12,6 @@ module Gigue
         :verbose    => Logger::ERROR,
       }
 
-      # logger setting
-      $logger = Logger.new(STDERR)
-      $logger.level = options[:verbose]
-
       # option setting
       globalopts = OptionParser.new do |opts|
         opts.banner = <<-BANNER
