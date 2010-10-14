@@ -12,9 +12,11 @@ module Gigue
         :verbose    => Logger::ERROR,
       }
 
+      # logger setting
       $logger = Logger.new(STDERR)
       $logger.level = options[:verbose]
 
+      # option setting
       globalopts = OptionParser.new do |opts|
         opts.banner = <<-BANNER
 GIGUE: A Sequence-Structure Homology Detection Method Using Environment-Specific Substitution Tables
@@ -47,13 +49,10 @@ Usage: #{File.basename($0)} build [options]
 
 Options:
           BANNER
-          opts.on('-t', '--template FILENAME', String, 'set JOY template file') { |o|
-            options[:joytem] = o
-          }
-          opts.on('-e', '--essts FILENAME', String, 'set environment-specific substition tables file') { |o|
-            options[:essts] = o
-          }
-          opts.on('-w', '--weighting INTEGER', Integer,
+          opts.on('-t', '--template FILENAME',  String, 'set JOY template file') { |o| options[:joytem] = o }
+          opts.on('-e', '--essts FILENAME',     String, 'set environment-specific substition tables file') { |o| options[:essts] = o }
+          opts.on('-o', '--output FILENAME',    String, 'set an output profile file (default: STDOUT)') { |o| options[:output] = o }
+          opts.on('-w', '--weighting INTEGER',  Integer,
                   'set weighting scheme',
                   '0    EqualWeighting  -- weighting each sequence equally',
                   '1    BlosumWeighting -- weighting scheme based on single linkage clustering',
@@ -67,9 +66,6 @@ Options:
                                     exit
                                   end
 
-          }
-          opts.on('-o', '--output FILENAME', String, 'set an output profile file (default: STDOUT)') { |o|
-            options[:output] = o
           }
           opts.on('-v', '--verbose INTEGER', Integer,
                   'show detailed console output',
@@ -102,25 +98,13 @@ Usage: #{File.basename($0)} search [options]
 
 Options:
           BANNER
-          opts.on('-p', '--profile FILENAME', String, 'set target profile') { |o|
-            options[:profile] = o
-          }
-          opts.on('-s', '--sequence FILENAME', String, 'set query sequence(s)') { |o|
-            options[:sequence] = o
-          }
-          opts.on('-o', '--output FILENAME', String, 'set output file name (default: STDOUT)') { |o|
-            options[:output] = o
-          }
-          opts.on('-t', '--toprank INTEGER', Integer, 'output scoring information about top N HITs') { |o|
-            options[:toprank] = o
-          }
-          opts.on('-z', '--zcutoff FLOAT', Float, 'output scoring information about HITs with Z-scores > cutoff') { |o|
-            options[:zcutoff] = o
-          }
-          opts.on('-c', '--process INTEGER', Integer, 'set number of processes to use (default: 1)') { |o|
-            options[:process] = o
-          }
-          opts.on('-a', '--algorithm INTEGER', Integer,
+          opts.on('-p', '--profile FILENAME',   String, 'set target profile') { |o| options[:profile] = o }
+          opts.on('-s', '--sequence FILENAME',  String, 'set query sequence(s)') { |o| options[:sequence] = o }
+          opts.on('-o', '--output FILENAME',    String, 'set output file name (default: STDOUT)') { |o| options[:output] = o }
+          opts.on('-t', '--toprank INTEGER',    Integer, 'output scoring information about top N HITs') { |o| options[:toprank] = o }
+          opts.on('-z', '--zcutoff FLOAT',      Float, 'output scoring information about HITs with Z-scores > cutoff') { |o| options[:zcutoff] = o }
+          opts.on('-c', '--process INTEGER',    Integer, 'set number of processes to use (default: 1)') { |o| options[:process] = o }
+          opts.on('-a', '--algorithm INTEGER',  Integer,
                   'set alignment algorithm',
                   '0      Global/Glocal (default)',
                   '2      Local') { |o|
@@ -163,19 +147,11 @@ Usage: #{File.basename($0)} align [options]
 
 Options:
           BANNER
-          opts.on('-p', '--profile FILENAME', String, 'set target profile') { |o|
-            options[:profile] = o
-          }
-          opts.on('-s', '--sequence FILENAME', String, 'set query sequence(s)') { |o|
-            options[:sequence] = o
-          }
-          opts.on('-a', '--alignment FILENAME', String, 'set query alignment') { |o|
-            options[:alignment] = o
-          }
-          opts.on('-o', '--output FILENAME', String, 'set output file name (default: STDOUT)') { |o|
-            options[:output] = o
-          }
-          opts.on('-a', '--algorithm INTEGER', Integer,
+          opts.on('-p', '--profile FILENAME',   String, 'set target profile') { |o| options[:profile] = o }
+          opts.on('-s', '--sequence FILENAME',  String, 'set query sequence(s)') { |o| options[:sequence] = o }
+          opts.on('-a', '--alignment FILENAME', String, 'set query alignment') { |o| options[:alignment] = o }
+          opts.on('-o', '--output FILENAME',    String, 'set output file name (default: STDOUT)') { |o| options[:output] = o }
+          opts.on('-a', '--algorithm INTEGER',  Integer,
                   'set alignment algorithm',
                   '0      Global/Glocal (default)',
                   '2      Local') { |o|
@@ -220,7 +196,7 @@ Options:
       end
 
       if subcommand.nil?
-        STDERR.puts globalopts.banner
+        stdout.puts globalopts.banner
         exit
       end
 
@@ -240,7 +216,7 @@ Options:
       case subcommand
       when 'build'
         if options[:joytem].nil? && options[:essts].nil?
-          STDERR.puts subopts['build']
+          stdout.puts subopts['build']
           exit
         end
 
@@ -257,7 +233,7 @@ Options:
         build_profile(options)
       when 'search'
         if options[:profile].nil? && options[:sequence].nil?
-          STDERR.puts subopts['search']
+          stdout.puts subopts['search']
           exit
         end
 
@@ -274,7 +250,7 @@ Options:
         search_profile(options)
       when 'align'
         if options[:profile].nil? && options[:sequence].nil?
-          STDERR.puts subopts['align']
+          stdout.puts subopts['align']
           exit
         end
 
