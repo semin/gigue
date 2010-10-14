@@ -32,9 +32,6 @@ require_relative 'gigue/multiple_sequence_alignment_column'
 require_relative 'gigue/environment_type_class_definition'
 
 module Gigue
-  $logger = Logger.new(STDERR)
-  $logger.level = Logger::ERROR
-
   VERSION = '0.0.1'
   NONE, UP, LEFT, DIAG = 0, 1, 2, 3
 end

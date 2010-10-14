@@ -13,5 +13,5 @@ A structure-sequence homology detection program using environmental-specific sub
 
 == INSTALL:
 
-    ~user $ sudo gem install gigue-<VERSION>.gem
+    ~user $ gem install gigue-<VERSION>.gem
 
