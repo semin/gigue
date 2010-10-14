@@ -220,7 +220,7 @@ Options:
       end
 
       if subcommand.nil?
-        $logger.error globalopts.banner
+        STDERR.puts globalopts.banner
         exit
       end
 
@@ -240,7 +240,7 @@ Options:
       case subcommand
       when 'build'
         if options[:joytem].nil? && options[:essts].nil?
-          $logger.error subopts['build']
+          STDERR.puts subopts['build']
           exit
         end
 
@@ -257,7 +257,7 @@ Options:
         build_profile(options)
       when 'search'
         if options[:profile].nil? && options[:sequence].nil?
-          $logger.error subopts['search']
+          STDERR.puts subopts['search']
           exit
         end
 
@@ -274,7 +274,7 @@ Options:
         search_profile(options)
       when 'align'
         if options[:profile].nil? && options[:sequence].nil?
-          $logger.error subopts['align']
+          STDERR.puts subopts['align']
           exit
         end
 
@@ -295,17 +295,17 @@ Options:
     def self.build_profile(opts)
       $logger.debug "Building a profile from #{opts[:joytem]} using #{opts[:essts]}"
 
-      unless File.exist? tem
+      unless File.exist? opts[:joytem]
         $logger.error "cannot find JOY template file, #{opts[:joytem]}"
         exit
       end
 
-      unless File.exists? essts
+      unless File.exists? opts[:essts]
         $logger.error "cannot find ESST file, #{opts[:essts]}"
         exit
       end
 
-      prf = StructuralProfile.create_from_joy_tem_and_essts(opts[:joytems], opts[:essts], :weighting => opts[:weighting]);
+      prf = StructuralProfile.create_from_joy_tem_and_essts(opts[:joytem], opts[:essts], :weighting => opts[:weighting]);
       out = opts[:output].nil? ? STDOUT : opts[:output]
       prf.to_gig(out)
     end
