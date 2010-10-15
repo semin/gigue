@@ -311,13 +311,19 @@ Options:
 
       shits = hits.sort_by { |h| h[-1] }.reverse
       out   = out.nil? ? STDOUT : File.open(out, 'w')
-      hdr   = "#%-15s %10s  %-15s %10s %10s %10s %10s" % %w[Prof ProfLen Seq SeqLen RawScore RevScore Z-score]
+      hdr   = "#%-15s %10s  %-15s %10s %10s %10s %10s" %
+                %w[Prof ProfLen Seq SeqLen RawScore RevScore Z-score]
 
       out.puts hdr
 
-      shits.each do |h|
+      shits.each_with_index do |hit, hi|
         hit_fmt = " %-15s %10d  %-15s %10d %10d %10d %10.3f"
-        out.puts hit_fmt % h
+        if opts[:zcutoff]
+          out.puts hit_fmt % hit if (opts[:zcutoff] < hit[-1])
+        else
+          out.puts hit_fmt % hit
+        end
+        break if opts[:toprank] && opts[:toprank] == (hi + 1)
       end
 
       out.close if out.is_a? File
