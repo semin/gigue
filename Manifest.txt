@@ -1,10 +1,10 @@
-.rspec
 History.txt
 Manifest.txt
 PostInstall.txt
 README.rdoc
 Rakefile
 bin/gigue
+gigue.gemspec
 lib/array_extensions.rb
 lib/gigue.rb
 lib/gigue/cli.rb
@@ -28,6 +28,9 @@ lib/gigue/structural_profile.rb
 lib/gigue/structural_profile_position.rb
 lib/gigue/substitution_table.rb
 script/console
+script/destroy
+script/generate
+script/txt2html
 spec/125074.tem
 spec/15983.tem
 spec/15991.tem
@@ -74,3 +77,4 @@ spec/test.fa
 spec/test.gig
 spec/ulla-logo-smooth-toccata-maskA.mat
 spec/ulla-logo-smooth-toccata-nomask.mat
+spec/ulla-mlr-logo-toccata-maskA.mat

@@ -17,7 +17,8 @@ $hoe = Hoe.spec 'gigue' do
   self.rubyforge_name       = self.name # TODO this is default value
   self.extra_deps           = [ ['narray','>= 0.5.9.7'],
                                 ['RubyInline', '>=3.8.5'],
-                                ['bio', '>=1.4.0'] ]
+                                ['bio', '>=1.4.0'],
+                                ['parallel', '>=0.4.6'] ]
 end
 
 require 'newgem/tasks'

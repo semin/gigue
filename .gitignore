@@ -1,6 +1,8 @@
 doc
 data
 tmp
+pkg
+*.gemspec
 .yardoc
 *.swp
 *.log
