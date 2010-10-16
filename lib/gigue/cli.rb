@@ -144,7 +144,7 @@ Usage: #{File.basename($0)} align [options]
 Options:
           BANNER
           opts.on('-p', '--profile FILENAME',   String, 'set target profile') { |o| options[:profile] = o }
-          opts.on('-s', '--sequence FILENAME',  String, 'set query sequence(s)') { |o| options[:sequence] = o }
+          opts.on('-s', '--sequence FILENAME',  String, 'set query sequence') { |o| options[:sequence] = o }
           opts.on('-a', '--alignment FILENAME', String, 'set query alignment') { |o| options[:alignment] = o }
           opts.on('-o', '--output FILENAME',    String, 'set output file name (default: STDOUT)') { |o| options[:output] = o }
           opts.on('-a', '--algorithm INTEGER',  Integer,
