@@ -1,6 +1,6 @@
 body {
     background-color: #003366;
-    font-family: Optima, "Lucida Grande", "Georgia", sans-serif;
+    font-family: "Georgia", "Optima", "Lucida Grande", "Georgia", sans-serif;
     font-size: 16px;
     line-height: 1.6em;
     padding: 1.6em 0 0 0;
@@ -77,7 +77,7 @@ td {
 }
 pre, code {
     font-family: courier, monospace;
-    font-size: 80%;
+    font-size: 85%;
     line-height: 1.4em;
     color: #ff8;
     background-color: #111;
