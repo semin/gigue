@@ -1,0 +1,40 @@
+GEM
+  remote: http://rubygems.org/
+  specs:
+    RubyInline (3.8.6)
+      ZenTest (~> 4.3)
+    ZenTest (4.4.0)
+    bio (1.4.0)
+    diff-lcs (1.1.2)
+    hoe (2.6.2)
+      rake (>= 0.8.7)
+      rubyforge (>= 2.0.4)
+    json_pure (1.4.6)
+    narray (0.5.9.7)
+    parallel (0.4.6)
+    rake (0.8.7)
+    rspec (2.0.0)
+      rspec-core (= 2.0.0)
+      rspec-expectations (= 2.0.0)
+      rspec-mocks (= 2.0.0)
+    rspec-core (2.0.0)
+    rspec-expectations (2.0.0)
+      diff-lcs (>= 1.1.2)
+    rspec-mocks (2.0.0)
+      rspec-core (= 2.0.0)
+      rspec-expectations (= 2.0.0)
+    rubyforge (2.0.4)
+      json_pure (>= 1.1.7)
+    yard (0.6.1)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  RubyInline (>= 3.8.5)
+  bio (>= 1.4.0)
+  hoe (>= 2.1.0)
+  narray (>= 0.5.9.7)
+  parallel (>= 0.4.6)
+  rspec (>= 2.0.0)
+  yard (>= 0.6.1)
