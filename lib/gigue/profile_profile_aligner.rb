@@ -9,7 +9,7 @@ module Gigue
       @sequence_profile   = seq_prf
       @amino_acids        = str_prf.essts.rownames
       @CJ_distinguished   = @amino_acids.include?('J')
-      @str_seq_ratio       = str_prf.length / Float(seq_prf.length)
+      @str_seq_ratio      = str_prf.length / Float(seq_prf.length)
     end
 
     def local_alignment_linear_gap(options={})
