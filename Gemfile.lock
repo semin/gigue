@@ -1,16 +1,25 @@
 GEM
   remote: http://rubygems.org/
   specs:
+    RedCloth (4.2.7)
     RubyInline (3.9.0)
       ZenTest (~> 4.3)
     ZenTest (4.5.0)
+    activesupport (2.3.11)
     autotest_screen (4.0.2)
     bio (1.4.1)
     diff-lcs (1.1.2)
     hoe (2.9.1)
       rake (>= 0.8.7)
+    i18n (0.5.0)
     narray (0.5.9.9)
-    parallel (0.5.2)
+    newgem (1.5.3)
+      RedCloth (>= 4.1.1)
+      activesupport (~> 2.3.4)
+      hoe (>= 2.4.0)
+      rubigen (>= 1.5.3)
+      syntax (>= 1.0.0)
+    parallel (0.5.3)
     rake (0.8.7)
     rspec (2.5.0)
       rspec-core (~> 2.5.0)
@@ -20,7 +29,11 @@ GEM
     rspec-expectations (2.5.0)
       diff-lcs (~> 1.1.2)
     rspec-mocks (2.5.0)
-    yard (0.6.4)
+    rubigen (1.5.6)
+      activesupport (>= 2.3.5)
+      i18n
+    syntax (1.0.0)
+    yard (0.6.5)
 
 PLATFORMS
   ruby
@@ -32,6 +45,7 @@ DEPENDENCIES
   bio
   hoe
   narray
+  newgem
   parallel
   rspec
   yard
