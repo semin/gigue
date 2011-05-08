@@ -1,17 +1,1 @@
 = GIGUE
-
-* http://www-cryst.bioc.cam.ac.uk/gigue
-
-== DESCRIPTION:
-
-A structure-sequence homology detection program using environmental-specific substitution tables and structure-dependant gap penalties
-
-== REQUIREMENTS:
-
-* ruby 1.9.2 or above (http://www.ruby-lang.org)
-* rubygems 1.3.7 or above (http://rubygems.org)
-
-== INSTALL:
-
-    ~user $ gem install gigue-<VERSION>.gem
-
