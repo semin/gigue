@@ -6,3 +6,4 @@ pkg
 .yardoc
 *.swp
 *.log
+*.lock
